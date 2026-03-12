@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Wrangler
+.wrangler/
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local

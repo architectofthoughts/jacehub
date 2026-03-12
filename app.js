@@ -119,42 +119,6 @@
     return data.result || [];
   }
 
-  // ── GitHub Description ──
-  async function fetchGitHubDescription(owner, repo) {
-    const cacheKey = `jacehub_desc_${owner}_${repo}`;
-    const cached = sessionStorage.getItem(cacheKey);
-    if (cached !== null) return cached;
-
-    try {
-      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
-      if (!res.ok) return '';
-      const data = await res.json();
-      const desc = data.description || '';
-      sessionStorage.setItem(cacheKey, desc);
-      return desc;
-    } catch {
-      return '';
-    }
-  }
-
-  async function fillDescriptions(projectList) {
-    const promises = projectList.map(async (project) => {
-      const owner = project.source?.config?.owner;
-      const repo = project.source?.config?.repo_name;
-      if (!owner || !repo) return;
-
-      const desc = await fetchGitHubDescription(owner, repo);
-      if (!desc) return;
-
-      const el = document.querySelector(`[data-project="${project.name}"] .card__desc`);
-      if (el) {
-        el.textContent = desc;
-        el.style.display = 'block';
-      }
-    });
-    await Promise.allSettled(promises);
-  }
-
   // ── Render ──
   function getDeploymentStatus(project) {
     const stage = project.latest_deployment?.latest_stage;
@@ -213,9 +177,10 @@
           ? `https://${subdomain}`
           : '#';
 
+      const description = project._description || '';
+
       return `
         <a class="card" href="${primaryUrl}" target="_blank" rel="noopener noreferrer"
-           data-project="${escapeHtml(project.name)}"
            style="animation-delay: ${0.05 * (index + 1)}s">
           <div class="card__header">
             <span class="card__name">${escapeHtml(project.name)}</span>
@@ -224,7 +189,7 @@
               ${status.label}
             </span>
           </div>
-          <p class="card__desc" style="display:none;"></p>
+          ${description ? `<p class="card__desc">${escapeHtml(description)}</p>` : ''}
           <div class="card__footer">
             <div class="card__url">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -240,9 +205,6 @@
     }).join('');
 
     showState('grid');
-
-    // Async: fill in GitHub descriptions
-    fillDescriptions(projectList);
   }
 
   function escapeHtml(str) {

@@ -11,6 +11,7 @@
     accountId: 'jacehub_account_id',
     apiToken:  'jacehub_api_token',
     ghToken:   'jacehub_gh_token',
+    cache:     'jacehub_cache',
   };
 
   // ── DOM References ──
@@ -220,11 +221,32 @@
     return div.innerHTML;
   }
 
+  // ── Cache ──
+  function saveCache(projectList) {
+    localStorage.setItem(STORAGE_KEYS.cache, JSON.stringify(projectList));
+  }
+
+  function loadCache() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.cache);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
   // ── Load ──
-  async function loadProjects() {
+  async function loadProjects(forceRefresh = false) {
     if (!hasConfig()) {
       showState('empty');
       return;
+    }
+
+    // Use cache if available and not forcing refresh
+    if (!forceRefresh) {
+      const cached = loadCache();
+      if (cached && cached.length > 0) {
+        renderProjects(cached);
+        return;
+      }
     }
 
     showState('loading');
@@ -236,12 +258,20 @@
         showToast('등록된 프로젝트가 없습니다.', 'info');
         return;
       }
+      saveCache(projectList);
       renderProjects(projectList);
       showToast(`${projectList.length}개 프로젝트를 불러왔습니다.`, 'success');
     } catch (err) {
-      dom.errorMessage.textContent = err.message;
-      showState('error');
-      showToast('프로젝트 로딩에 실패했습니다.', 'error');
+      // If refresh failed but we have cache, show cache with error toast
+      const cached = loadCache();
+      if (cached && cached.length > 0) {
+        renderProjects(cached);
+        showToast('갱신 실패 — 캐시된 데이터를 표시 중입니다.', 'error');
+      } else {
+        dom.errorMessage.textContent = err.message;
+        showState('error');
+        showToast('프로젝트 로딩에 실패했습니다.', 'error');
+      }
     }
   }
 
@@ -272,17 +302,17 @@
       saveConfig(accountId, apiToken, ghToken);
       closeModal();
       showToast('설정이 저장되었습니다.', 'success');
-      loadProjects();
+      loadProjects(true);  // Force refresh on config change
     });
 
-    // Refresh
+    // Refresh (force)
     dom.btnRefresh.addEventListener('click', () => {
-      loadProjects();
+      loadProjects(true);
     });
 
-    // Retry
+    // Retry (force)
     dom.btnRetry.addEventListener('click', () => {
-      loadProjects();
+      loadProjects(true);
     });
 
     // Keyboard

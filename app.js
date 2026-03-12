@@ -7,7 +7,6 @@
   'use strict';
 
   // ── Constants ──
-  const CF_API = 'https://api.cloudflare.com/client/v4';
   const STORAGE_KEYS = {
     accountId: 'jacehub_account_id',
     apiToken:  'jacehub_api_token',
@@ -103,15 +102,12 @@
   async function fetchProjects() {
     const { accountId, apiToken } = getConfig();
 
-    const response = await fetch(
-      `${CF_API}/accounts/${accountId}/pages/projects`,
-      {
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await fetch('/api/projects', {
+      headers: {
+        'X-CF-Account-Id': accountId,
+        'X-CF-Api-Token': apiToken,
+      },
+    });
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));

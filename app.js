@@ -187,39 +187,14 @@
               ${status.label}
             </span>
           </div>
-          <div class="card__meta">
-            ${subdomain ? `
-              <div class="card__meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                </svg>
-                <a href="https://${escapeHtml(subdomain)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
-                  ${escapeHtml(subdomain)}
-                </a>
-              </div>
-            ` : ''}
-            ${domains.map(d => `
-              <div class="card__meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                </svg>
-                <a href="https://${escapeHtml(d)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
-                  ${escapeHtml(d)}
-                </a>
-              </div>
-            `).join('')}
-          </div>
           <div class="card__footer">
-            ${framework ? `
-              <span class="card__framework">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-                </svg>
-                ${escapeHtml(framework)}
-              </span>
-            ` : '<span></span>'}
+            <div class="card__url">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <span>${escapeHtml(primaryUrl.replace(/^https?:\/\//, ''))}</span>
+            </div>
             <span class="card__time">${getRelativeTime(deployedAt)}</span>
           </div>
         </a>

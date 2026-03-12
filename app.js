@@ -10,6 +10,7 @@
   const STORAGE_KEYS = {
     accountId: 'jacehub_account_id',
     apiToken:  'jacehub_api_token',
+    ghToken:   'jacehub_gh_token',
   };
 
   // ── DOM References ──
@@ -30,6 +31,7 @@
     modalOverlay: $('#modal-overlay'),
     inputAccountId: $('#input-account-id'),
     inputApiToken:  $('#input-api-token'),
+    inputGhToken:   $('#input-gh-token'),
     // Buttons
     btnSettings:    $('#btn-settings'),
     btnSetup:       $('#btn-setup'),
@@ -50,12 +52,14 @@
     return {
       accountId: localStorage.getItem(STORAGE_KEYS.accountId) || '',
       apiToken:  localStorage.getItem(STORAGE_KEYS.apiToken)  || '',
+      ghToken:   localStorage.getItem(STORAGE_KEYS.ghToken)   || '',
     };
   }
 
-  function saveConfig(accountId, apiToken) {
+  function saveConfig(accountId, apiToken, ghToken) {
     localStorage.setItem(STORAGE_KEYS.accountId, accountId.trim());
     localStorage.setItem(STORAGE_KEYS.apiToken, apiToken.trim());
+    localStorage.setItem(STORAGE_KEYS.ghToken, (ghToken || '').trim());
   }
 
   function hasConfig() {
@@ -74,9 +78,10 @@
 
   // ── Modal ──
   function openModal() {
-    const { accountId, apiToken } = getConfig();
+    const { accountId, apiToken, ghToken } = getConfig();
     dom.inputAccountId.value = accountId;
     dom.inputApiToken.value  = apiToken;
+    dom.inputGhToken.value   = ghToken;
     dom.modalOverlay.classList.add('is-open');
     setTimeout(() => dom.inputAccountId.focus(), 200);
   }
@@ -100,14 +105,15 @@
 
   // ── API ──
   async function fetchProjects() {
-    const { accountId, apiToken } = getConfig();
+    const { accountId, apiToken, ghToken } = getConfig();
 
-    const response = await fetch('/api/projects', {
-      headers: {
-        'X-CF-Account-Id': accountId,
-        'X-CF-Api-Token': apiToken,
-      },
-    });
+    const headers = {
+      'X-CF-Account-Id': accountId,
+      'X-CF-Api-Token': apiToken,
+    };
+    if (ghToken) headers['X-GH-Token'] = ghToken;
+
+    const response = await fetch('/api/projects', { headers });
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
@@ -256,13 +262,14 @@
     dom.btnSave.addEventListener('click', () => {
       const accountId = dom.inputAccountId.value.trim();
       const apiToken  = dom.inputApiToken.value.trim();
+      const ghToken   = dom.inputGhToken.value.trim();
 
       if (!accountId || !apiToken) {
         showToast('Account ID와 API Token을 모두 입력해주세요.', 'error');
         return;
       }
 
-      saveConfig(accountId, apiToken);
+      saveConfig(accountId, apiToken, ghToken);
       closeModal();
       showToast('설정이 저장되었습니다.', 'success');
       loadProjects();

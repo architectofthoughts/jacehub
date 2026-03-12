@@ -8,7 +8,7 @@ export async function onRequest(context) {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-CF-Account-Id, X-CF-Api-Token',
+        'Access-Control-Allow-Headers': 'Content-Type, X-CF-Account-Id, X-CF-Api-Token, X-GH-Token',
         'Access-Control-Max-Age': '86400',
       },
     });
@@ -16,6 +16,7 @@ export async function onRequest(context) {
 
   const accountId = context.request.headers.get('X-CF-Account-Id');
   const apiToken = context.request.headers.get('X-CF-Api-Token');
+  const ghToken = context.request.headers.get('X-GH-Token') || '';
 
   if (!accountId || !apiToken) {
     return Response.json(
@@ -63,9 +64,12 @@ export async function onRequest(context) {
 
             if (owner && repoName) {
               try {
+                const ghHeaders = { 'User-Agent': 'JaceHub/1.0' };
+                if (ghToken) ghHeaders['Authorization'] = `Bearer ${ghToken}`;
+
                 const ghRes = await fetch(
                   `https://api.github.com/repos/${owner}/${repoName}`,
-                  { headers: { 'User-Agent': 'JaceHub/1.0' } }
+                  { headers: ghHeaders }
                 );
                 if (ghRes.ok) {
                   const ghData = await ghRes.json();

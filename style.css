@@ -348,6 +348,17 @@ body {
   background: currentColor;
 }
 
+.card__desc {
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--c-text-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .card__footer {
   margin-top: var(--s-md);
   display: flex;

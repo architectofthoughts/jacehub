@@ -68,6 +68,37 @@
       </div>
     </div>
 
+    <section class="toolbar" id="toolbar" style="display:none;" aria-label="프로젝트 탐색 도구">
+      <label class="search-field" for="input-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input class="search-field__input" id="input-search" type="search" placeholder="프로젝트 이름, 설명, 도메인 검색">
+      </label>
+      <div class="toolbar__controls">
+        <label class="toolbar__select">
+          <span>상태</span>
+          <select id="filter-status">
+            <option value="all">전체 상태</option>
+            <option value="favorites">즐겨찾기</option>
+            <option value="success">활성</option>
+            <option value="active">진행 중</option>
+            <option value="failure">실패</option>
+          </select>
+        </label>
+        <label class="toolbar__select">
+          <span>정렬</span>
+          <select id="sort-projects">
+            <option value="recent">최근 배포순</option>
+            <option value="name">이름순</option>
+            <option value="domains">도메인 많은 순</option>
+          </select>
+        </label>
+      </div>
+      <p class="toolbar__summary" id="toolbar-summary">0개 표시</p>
+    </section>
+
     <!-- Loading State -->
     <div class="state state--loading" id="state-loading" style="display:none;" role="status" aria-live="polite">
       <div class="spinner"></div>
@@ -108,6 +139,10 @@
     </div>
 
     <!-- Project Grid -->
+    <div class="results-empty" id="results-empty" style="display:none;" aria-live="polite">
+      <strong>조건에 맞는 프로젝트가 없습니다</strong>
+      <p>검색어 또는 필터를 바꿔서 다시 찾아보세요.</p>
+    </div>
     <div class="grid" id="project-grid" aria-live="polite"></div>
   </main>
 

@@ -59,6 +59,10 @@
         <span class="stats__label">전체 프로젝트</span>
       </div>
       <div class="stats__item">
+        <span class="stats__value" id="stat-attention">0</span>
+        <span class="stats__label">주의 필요</span>
+      </div>
+      <div class="stats__item">
         <span class="stats__value" id="stat-active">0</span>
         <span class="stats__label">활성 배포</span>
       </div>
@@ -67,6 +71,37 @@
         <span class="stats__label">커스텀 도메인</span>
       </div>
     </div>
+
+    <section class="radar" id="radar" style="display:none;" aria-label="실험용 배포 레이더">
+      <div class="radar__hero">
+        <div class="radar__copy">
+          <p class="radar__eyebrow">Experimental Radar</p>
+          <h2 class="radar__title">배포 우선순위를 먼저 확인하세요</h2>
+          <p class="radar__summary" id="radar-summary">프로젝트 신호를 분석하는 중입니다.</p>
+        </div>
+        <div class="radar__pulse">
+          <div class="radar-metric">
+            <span class="radar-metric__label">즉시 확인</span>
+            <strong class="radar-metric__value" id="radar-metric-attention">0</strong>
+          </div>
+          <div class="radar-metric">
+            <span class="radar-metric__label">정체 프로젝트</span>
+            <strong class="radar-metric__value" id="radar-metric-stale">0</strong>
+          </div>
+          <div class="radar-metric">
+            <span class="radar-metric__label">최근 7일 배포</span>
+            <strong class="radar-metric__value" id="radar-metric-fresh">0</strong>
+          </div>
+        </div>
+      </div>
+      <div class="radar__board">
+        <div class="radar__highlights" id="radar-highlights"></div>
+        <div class="radar__filters">
+          <p class="radar__filters-title">Quick Filters</p>
+          <div class="radar__chips" id="radar-chips" role="group" aria-label="레이더 빠른 필터"></div>
+        </div>
+      </div>
+    </section>
 
     <section class="toolbar" id="toolbar" style="display:none;" aria-label="프로젝트 탐색 도구">
       <label class="search-field" for="input-search">
@@ -91,6 +126,7 @@
           <span>정렬</span>
           <select id="sort-projects">
             <option value="recent">최근 배포순</option>
+            <option value="attention">레이더 우선순위</option>
             <option value="name">이름순</option>
             <option value="domains">도메인 많은 순</option>
           </select>

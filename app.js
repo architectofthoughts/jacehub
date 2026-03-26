@@ -9,6 +9,10 @@
   // ── Constants ──
   const CACHE_TTL_MS = 10 * 60 * 1000;
   const TOAST_DURATION_MS = 3000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const FRESH_PROJECT_DAYS = 7;
+  const STALE_PROJECT_DAYS = 21;
+  const CRITICAL_PROJECT_DAYS = 45;
   const STORAGE_KEYS = {
     accountId: 'jacehub_account_id',
     apiToken:  'jacehub_api_token',
@@ -33,8 +37,16 @@
     projectGrid:      $('#project-grid'),
     stats:            $('#stats'),
     statTotal:        $('#stat-total'),
+    statAttention:    $('#stat-attention'),
     statActive:       $('#stat-active'),
     statDomains:      $('#stat-domains'),
+    radar:            $('#radar'),
+    radarSummary:     $('#radar-summary'),
+    radarMetricAttention: $('#radar-metric-attention'),
+    radarMetricStale: $('#radar-metric-stale'),
+    radarMetricFresh: $('#radar-metric-fresh'),
+    radarHighlights:  $('#radar-highlights'),
+    radarChips:       $('#radar-chips'),
     toolbar:          $('#toolbar'),
     inputSearch:      $('#input-search'),
     filterStatus:     $('#filter-status'),
@@ -64,6 +76,7 @@
   let lastFocusedElement = null;
   let currentProjects = [];
   let favoriteProjects = loadFavorites();
+  let activeRadarFilter = 'all';
 
   // ── Storage ──
   function getConfig() {
@@ -167,6 +180,7 @@
     dom.stateError.style.display = state === 'error' ? 'flex' : 'none';
     dom.projectGrid.style.display = state === 'grid' ? 'grid' : 'none';
     dom.stats.style.display = state === 'grid' ? 'flex' : 'none';
+    dom.radar.style.display = state === 'grid' ? 'grid' : 'none';
     dom.toolbar.style.display = state === 'grid' ? 'grid' : 'none';
     dom.resultsEmpty.style.display = 'none';
     dom.main.setAttribute('data-view-state', state);
@@ -327,6 +341,81 @@
     return Number.isNaN(timestamp) ? 0 : timestamp;
   }
 
+  function getProjectAgeDays(project) {
+    const timestamp = getDeploymentTimestamp(project);
+    if (!timestamp) return null;
+    return Math.max(0, Math.floor((Date.now() - timestamp) / DAY_MS));
+  }
+
+  function formatDeploymentAge(days) {
+    if (days === null) return '배포 이력 없음';
+    if (days === 0) return '오늘 배포';
+    if (days === 1) return '1일 전 배포';
+    return `${days}일 전 배포`;
+  }
+
+  function getProjectRadar(project) {
+    const statusKey = getProjectStatusKey(project);
+    const ageDays = getProjectAgeDays(project);
+    const hasCustomDomain = (project.domains?.length || 0) > 0;
+    const signals = [];
+    let score = 0;
+
+    if (statusKey === 'failure') {
+      score += 5;
+      signals.push('최근 배포가 실패했습니다');
+    } else if (statusKey === 'active') {
+      score += 2;
+      signals.push('배포가 아직 진행 중입니다');
+    }
+
+    if (ageDays === null) {
+      score += 4;
+      signals.push('배포 기록이 없습니다');
+    } else if (ageDays >= CRITICAL_PROJECT_DAYS) {
+      score += 4;
+      signals.push(`${ageDays}일째 새 배포가 없습니다`);
+    } else if (ageDays >= STALE_PROJECT_DAYS) {
+      score += 2;
+      signals.push(`${ageDays}일째 업데이트가 없습니다`);
+    } else if (ageDays <= FRESH_PROJECT_DAYS && statusKey === 'success') {
+      signals.push(`${formatDeploymentAge(ageDays)}로 최신 상태입니다`);
+    }
+
+    if (!hasCustomDomain) {
+      score += 2;
+      signals.push('커스텀 도메인이 연결되지 않았습니다');
+    }
+
+    if (!project._description) {
+      score += 1;
+      signals.push('저장소 설명이 비어 있습니다');
+    }
+
+    if (isFavoriteProject(project.name)) {
+      signals.push('즐겨찾기 프로젝트입니다');
+    }
+
+    const severity = score >= 5 ? 'attention' : score >= 3 ? 'watch' : 'healthy';
+    const label = severity === 'attention'
+      ? '즉시 확인'
+      : severity === 'watch'
+        ? '관찰 필요'
+        : '정상';
+
+    return {
+      score,
+      severity,
+      label,
+      ageDays,
+      hasCustomDomain,
+      isFresh: ageDays !== null && ageDays <= FRESH_PROJECT_DAYS && statusKey === 'success',
+      isStale: ageDays === null || ageDays >= STALE_PROJECT_DAYS,
+      signals,
+      summary: signals[0] || '최근 상태가 안정적입니다',
+    };
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -376,11 +465,138 @@
     return haystack.includes(query);
   }
 
+  function matchesRadarFilter(project) {
+    const radar = getProjectRadar(project);
+
+    switch (activeRadarFilter) {
+      case 'attention':
+        return radar.severity === 'attention';
+      case 'stale':
+        return radar.isStale;
+      case 'fresh':
+        return radar.isFresh;
+      case 'domainless':
+        return !radar.hasCustomDomain;
+      case 'favorites':
+        return isFavoriteProject(project.name);
+      default:
+        return true;
+    }
+  }
+
+  function getFrameworkSummary(projectList) {
+    const counts = new Map();
+
+    projectList.forEach((project) => {
+      const framework = String(project.framework || '').trim();
+      if (!framework) return;
+      counts.set(framework, (counts.get(framework) || 0) + 1);
+    });
+
+    const summary = [...counts.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 3)
+      .map(([framework, count]) => `${framework} ${count}개`)
+      .join(' · ');
+
+    return summary || '프레임워크 정보가 충분하지 않습니다';
+  }
+
+  function getRadarOverview(projectList) {
+    const projectRadarList = projectList.map((project) => ({
+      project,
+      radar: getProjectRadar(project),
+    }));
+
+    const sortedByAttention = [...projectRadarList].sort((left, right) => {
+      const scoreDelta = right.radar.score - left.radar.score;
+      if (scoreDelta !== 0) {
+        return scoreDelta;
+      }
+
+      const ageDelta = (right.radar.ageDays ?? Number.MAX_SAFE_INTEGER) - (left.radar.ageDays ?? Number.MAX_SAFE_INTEGER);
+      if (ageDelta !== 0) {
+        return ageDelta;
+      }
+
+      return getDeploymentTimestamp(left.project) - getDeploymentTimestamp(right.project);
+    });
+
+    const projectsNeedingAttention = sortedByAttention.filter(({ radar }) => radar.score > 0);
+    const highlightProjects = (projectsNeedingAttention.length > 0 ? projectsNeedingAttention : sortedByAttention).slice(0, 3);
+
+    return {
+      attentionCount: projectRadarList.filter(({ radar }) => radar.severity === 'attention').length,
+      staleCount: projectRadarList.filter(({ radar }) => radar.isStale).length,
+      freshCount: projectRadarList.filter(({ radar }) => radar.isFresh).length,
+      domainlessCount: projectRadarList.filter(({ radar }) => !radar.hasCustomDomain).length,
+      favoriteCount: projectList.filter((project) => isFavoriteProject(project.name)).length,
+      frameworkSummary: getFrameworkSummary(projectList),
+      highlightProjects,
+    };
+  }
+
+  function renderRadar(projectList) {
+    const overview = getRadarOverview(projectList);
+    const leadHighlight = overview.highlightProjects[0];
+    const leadSentence = leadHighlight
+      ? `${leadHighlight.project.name}부터 확인하는 편이 좋습니다.`
+      : '아직 표시할 프로젝트가 없습니다.';
+    const balanceSentence = overview.attentionCount > 0
+      ? `즉시 확인 ${overview.attentionCount}개, ${STALE_PROJECT_DAYS}일 이상 정체 ${overview.staleCount}개입니다.`
+      : `현재 치명적 경고는 없고 최근 ${FRESH_PROJECT_DAYS}일 내 배포가 ${overview.freshCount}개입니다.`;
+
+    dom.radarSummary.textContent = `${leadSentence} ${balanceSentence} 프레임워크 분포: ${overview.frameworkSummary}.`;
+    dom.radarMetricAttention.textContent = overview.attentionCount;
+    dom.radarMetricStale.textContent = overview.staleCount;
+    dom.radarMetricFresh.textContent = overview.freshCount;
+
+    dom.radarHighlights.innerHTML = overview.highlightProjects.map(({ project, radar }) => {
+      const deployedAt = formatDeploymentAge(radar.ageDays);
+      const primarySignal = radar.summary;
+      return `
+        <article class="radar-highlight radar-highlight--${radar.severity}">
+          <div class="radar-highlight__header">
+            <span class="radar-highlight__pill">${escapeHtml(radar.label)}</span>
+            <span class="radar-highlight__meta">${escapeHtml(deployedAt)}</span>
+          </div>
+          <strong class="radar-highlight__name">${escapeHtml(project.name)}</strong>
+          <p class="radar-highlight__desc">${escapeHtml(primarySignal)}</p>
+        </article>
+      `;
+    }).join('');
+
+    const filters = [
+      { key: 'all', label: '전체', count: projectList.length },
+      { key: 'attention', label: '주의', count: overview.attentionCount },
+      { key: 'stale', label: '정체', count: overview.staleCount },
+      { key: 'fresh', label: '최근 배포', count: overview.freshCount },
+      { key: 'domainless', label: '도메인 없음', count: overview.domainlessCount },
+      { key: 'favorites', label: '즐겨찾기', count: overview.favoriteCount },
+    ];
+
+    dom.radarChips.innerHTML = filters.map((filter) => `
+      <button
+        class="radar-chip${activeRadarFilter === filter.key ? ' is-active' : ''}"
+        type="button"
+        data-radar-filter="${filter.key}"
+        aria-pressed="${String(activeRadarFilter === filter.key)}"
+      >
+        <span>${escapeHtml(filter.label)}</span>
+        <strong class="radar-chip__count">${filter.count}</strong>
+      </button>
+    `).join('');
+  }
+
   function filterProjects(projectList) {
     const query = dom.inputSearch.value.trim().toLowerCase();
     const statusFilter = dom.filterStatus.value;
 
     return projectList.filter((project) => {
+      if (!matchesRadarFilter(project)) {
+        return false;
+      }
+
       if (!matchesSearch(project, query)) {
         return false;
       }
@@ -402,6 +618,18 @@
     const sortedProjects = [...projectList];
 
     sortedProjects.sort((left, right) => {
+      if (sortValue === 'attention') {
+        const radarDelta = getProjectRadar(right).score - getProjectRadar(left).score;
+        if (radarDelta !== 0) {
+          return radarDelta;
+        }
+
+        const ageDelta = (getProjectRadar(right).ageDays ?? Number.MAX_SAFE_INTEGER) - (getProjectRadar(left).ageDays ?? Number.MAX_SAFE_INTEGER);
+        if (ageDelta !== 0) {
+          return ageDelta;
+        }
+      }
+
       const favoriteDelta = Number(isFavoriteProject(right.name)) - Number(isFavoriteProject(left.name));
       if (favoriteDelta !== 0) {
         return favoriteDelta;
@@ -428,8 +656,10 @@
     const safeProjectList = Array.isArray(projectList) ? projectList : [];
     const totalDomains = currentProjects.reduce((sum, project) => sum + (project.domains?.length || 0), 0);
     const activeCount = currentProjects.filter((project) => getProjectStatusKey(project) === 'success').length;
+    const attentionCount = currentProjects.filter((project) => getProjectRadar(project).severity === 'attention').length;
 
     dom.statTotal.textContent = currentProjects.length;
+    dom.statAttention.textContent = attentionCount;
     dom.statActive.textContent = activeCount;
     dom.statDomains.textContent = totalDomains;
     updateToolbarSummary(currentProjects.length, safeProjectList.length);
@@ -446,6 +676,7 @@
     dom.projectGrid.style.display = 'grid';
     dom.projectGrid.innerHTML = safeProjectList.map((project, index) => {
       const status = getDeploymentStatus(project);
+      const radar = getProjectRadar(project);
       const domains = project.domains || [];
       const framework = project.framework || '';
       const deployedAt = project.latest_deployment?.created_on;
@@ -454,8 +685,9 @@
       const displayUrl = primaryUrl ? primaryUrl.replace(/^https?:\/\//, '') : '연결된 주소 없음';
       const isFavorite = isFavoriteProject(project.name);
       const meta = [
+        `<span class="card__tag card__tag--${radar.severity}">${escapeHtml(radar.label)}</span>`,
         framework ? `<span class="card__tag">${escapeHtml(framework)}</span>` : '',
-        domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '',
+        domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '<span class="card__tag card__tag--muted">도메인 미연결</span>',
       ].filter(Boolean).join('');
 
       return `
@@ -483,6 +715,7 @@
           </div>
           ${description ? `<p class="card__desc">${escapeHtml(description)}</p>` : ''}
           ${meta ? `<div class="card__meta">${meta}</div>` : ''}
+          <p class="card__signal">${escapeHtml(radar.summary)}</p>
           <div class="card__footer">
             <div class="card__actions">
               <div class="card__url">
@@ -522,6 +755,8 @@
       showEmptyState(hasConfig() ? 'no-projects' : 'config');
       return;
     }
+
+    renderRadar(currentProjects);
 
     const filteredProjects = filterProjects(currentProjects);
     const sortedProjects = sortProjects(filteredProjects);
@@ -661,6 +896,17 @@
     );
   }
 
+  function handleRadarClick(event) {
+    const filterButton = event.target.closest('[data-radar-filter]');
+    if (!filterButton) return;
+
+    const nextFilter = filterButton.getAttribute('data-radar-filter') || 'all';
+    activeRadarFilter = activeRadarFilter === nextFilter && nextFilter !== 'all'
+      ? 'all'
+      : nextFilter;
+    renderDashboard();
+  }
+
   function bindEvents() {
     dom.btnSettings.addEventListener('click', openModal);
     dom.btnSetup.addEventListener('click', openModal);
@@ -677,6 +923,7 @@
     dom.btnRefresh.addEventListener('click', () => loadProjects(true));
     dom.btnRetry.addEventListener('click', () => loadProjects(true));
     dom.projectGrid.addEventListener('click', handleGridClick);
+    dom.radarChips.addEventListener('click', handleRadarClick);
     dom.inputSearch.addEventListener('input', renderDashboard);
     dom.filterStatus.addEventListener('change', renderDashboard);
     dom.sortProjects.addEventListener('change', renderDashboard);

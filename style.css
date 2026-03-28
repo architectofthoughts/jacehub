@@ -459,7 +459,7 @@ body {
 /* ── Toolbar ── */
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) auto auto;
+  grid-template-columns: minmax(0, 1.4fr) auto auto auto;
   gap: var(--s-md);
   align-items: center;
   padding: var(--s-md);
@@ -508,6 +508,16 @@ body {
   display: inline-flex;
   align-items: center;
   gap: var(--s-sm);
+}
+
+.toolbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+}
+
+.btn--toolbar {
+  padding-inline: 0.9rem;
 }
 
 .toolbar__select {
@@ -1072,6 +1082,9 @@ body {
     grid-template-columns: 1fr;
   }
   .toolbar__controls {
+    flex-wrap: wrap;
+  }
+  .toolbar__actions {
     flex-wrap: wrap;
   }
   .toolbar__summary {

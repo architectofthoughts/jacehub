@@ -52,6 +52,8 @@
     filterStatus:     $('#filter-status'),
     sortProjects:     $('#sort-projects'),
     toolbarSummary:   $('#toolbar-summary'),
+    btnCopyReport:    $('#btn-copy-report'),
+    btnExportCsv:     $('#btn-export-csv'),
     // Modal
     modalOverlay:     $('#modal-overlay'),
     modal:            $('#modal'),
@@ -218,6 +220,13 @@
       : `${totalCount}개 중 ${visibleCount}개 표시`;
   }
 
+  function setToolbarActionsEnabled(isEnabled) {
+    [dom.btnCopyReport, dom.btnExportCsv].forEach((button) => {
+      button.disabled = !isEnabled;
+      button.setAttribute('aria-disabled', String(!isEnabled));
+    });
+  }
+
   // ── Modal ──
   function isModalOpen() {
     return dom.modalOverlay.classList.contains('is-open');
@@ -334,6 +343,18 @@
     if (diffHour < 24) return `${diffHour}시간 전`;
     if (diffDay < 30) return `${diffDay}일 전`;
     return date.toLocaleDateString('ko-KR');
+  }
+
+  function formatAbsoluteDate(dateStr) {
+    if (!dateStr) return '기록 없음';
+
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '기록 없음';
+
+    return new Intl.DateTimeFormat('ko-KR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
   }
 
   function getDeploymentTimestamp(project) {
@@ -484,6 +505,38 @@
     }
   }
 
+  function getStatusFilterLabel(statusFilter) {
+    switch (statusFilter) {
+      case 'favorites':
+        return '즐겨찾기';
+      case 'success':
+        return '활성';
+      case 'active':
+        return '진행 중';
+      case 'failure':
+        return '실패';
+      default:
+        return '전체 상태';
+    }
+  }
+
+  function getRadarFilterLabel(filterKey) {
+    switch (filterKey) {
+      case 'attention':
+        return '주의';
+      case 'stale':
+        return '정체';
+      case 'fresh':
+        return '최근 배포';
+      case 'domainless':
+        return '도메인 없음';
+      case 'favorites':
+        return '즐겨찾기';
+      default:
+        return '전체';
+    }
+  }
+
   function getFrameworkSummary(projectList) {
     const counts = new Map();
 
@@ -613,6 +666,128 @@
     });
   }
 
+  function getVisibleProjects() {
+    return sortProjects(filterProjects(currentProjects));
+  }
+
+  function formatCsvValue(value) {
+    const normalized = String(value ?? '').replace(/\r?\n/g, ' ').trim();
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+
+  function createExportTimestamp() {
+    return new Date().toISOString().replace(/[:.]/g, '-');
+  }
+
+  function downloadTextFile(filename, contents, type) {
+    const blob = new Blob([contents], { type });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function copyText(text) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+
+    if (!copied) {
+      throw new Error('클립보드에 복사하지 못했습니다.');
+    }
+  }
+
+  function buildProjectsCsv(projectList) {
+    const header = [
+      'project_name',
+      'status',
+      'radar_label',
+      'radar_score',
+      'framework',
+      'primary_url',
+      'domain_count',
+      'last_deployed_at',
+      'last_deployed_relative',
+      'favorite',
+      'summary',
+      'description',
+    ];
+
+    const rows = projectList.map((project) => {
+      const radar = getProjectRadar(project);
+      const status = getDeploymentStatus(project);
+      const deployedAt = project.latest_deployment?.created_on || '';
+
+      return [
+        project.name || '',
+        status.label,
+        radar.label,
+        radar.score,
+        project.framework || '',
+        getPrimaryUrl(project),
+        project.domains?.length || 0,
+        deployedAt,
+        getRelativeTime(deployedAt),
+        isFavoriteProject(project.name) ? 'yes' : 'no',
+        radar.summary,
+        project._description || '',
+      ].map(formatCsvValue).join(',');
+    });
+
+    return [header.join(','), ...rows].join('\n');
+  }
+
+  function buildStatusReport(projectList) {
+    const overview = getRadarOverview(projectList);
+    const searchQuery = dom.inputSearch.value.trim();
+    const statusFilterLabel = getStatusFilterLabel(dom.filterStatus.value);
+    const radarFilterLabel = getRadarFilterLabel(activeRadarFilter);
+    const sortLabel = dom.sortProjects.options[dom.sortProjects.selectedIndex]?.textContent || '최근 배포순';
+    const generatedAt = formatAbsoluteDate(new Date().toISOString());
+    const projectLines = projectList.slice(0, 10).map((project) => {
+      const radar = getProjectRadar(project);
+      const status = getDeploymentStatus(project);
+      const deployedAt = formatDeploymentAge(radar.ageDays);
+      return `- ${project.name}: ${status.label} / ${radar.label} / ${deployedAt} / ${radar.summary}`;
+    });
+
+    return [
+      '# JaceHub 배포 상태 보고서',
+      '',
+      `생성 시각: ${generatedAt}`,
+      `표시 프로젝트: ${projectList.length}개`,
+      `레이더 필터: ${radarFilterLabel}`,
+      `상태 필터: ${statusFilterLabel}`,
+      `정렬: ${sortLabel}`,
+      `검색어: ${searchQuery || '없음'}`,
+      '',
+      '## 요약',
+      `- 즉시 확인: ${overview.attentionCount}개`,
+      `- 정체 프로젝트: ${overview.staleCount}개`,
+      `- 최근 ${FRESH_PROJECT_DAYS}일 배포: ${overview.freshCount}개`,
+      `- 도메인 미연결: ${overview.domainlessCount}개`,
+      `- 즐겨찾기 포함: ${overview.favoriteCount}개`,
+      '',
+      '## 우선 확인 프로젝트',
+      ...(projectLines.length > 0 ? projectLines : ['- 표시할 프로젝트가 없습니다.']),
+    ].join('\n');
+  }
+
   function sortProjects(projectList) {
     const sortValue = dom.sortProjects.value;
     const sortedProjects = [...projectList];
@@ -663,6 +838,7 @@
     dom.statActive.textContent = activeCount;
     dom.statDomains.textContent = totalDomains;
     updateToolbarSummary(currentProjects.length, safeProjectList.length);
+    setToolbarActionsEnabled(safeProjectList.length > 0);
 
     if (safeProjectList.length === 0) {
       showState('grid');
@@ -758,9 +934,7 @@
 
     renderRadar(currentProjects);
 
-    const filteredProjects = filterProjects(currentProjects);
-    const sortedProjects = sortProjects(filteredProjects);
-    renderProjects(sortedProjects);
+    renderProjects(getVisibleProjects());
   }
 
   // ── Load ──
@@ -853,6 +1027,34 @@
     loadProjects(true);
   }
 
+  async function handleCopyReport() {
+    const visibleProjects = getVisibleProjects();
+    if (visibleProjects.length === 0) {
+      showToast('복사할 프로젝트가 없습니다.', 'error');
+      return;
+    }
+
+    try {
+      await copyText(buildStatusReport(visibleProjects));
+      showToast(`현재 목록 ${visibleProjects.length}개를 보고서로 복사했습니다.`, 'success');
+    } catch (error) {
+      showToast(error.message || '보고서 복사에 실패했습니다.', 'error');
+    }
+  }
+
+  function handleExportCsv() {
+    const visibleProjects = getVisibleProjects();
+    if (visibleProjects.length === 0) {
+      showToast('내보낼 프로젝트가 없습니다.', 'error');
+      return;
+    }
+
+    const filename = `jacehub-projects-${createExportTimestamp()}.csv`;
+    const csvContent = buildProjectsCsv(visibleProjects);
+    downloadTextFile(filename, csvContent, 'text/csv;charset=utf-8');
+    showToast(`현재 목록 ${visibleProjects.length}개를 CSV로 내보냈습니다.`, 'success');
+  }
+
   function handleDocumentKeydown(event) {
     if (event.key === 'Escape' && isModalOpen()) {
       closeModal();
@@ -922,6 +1124,8 @@
     dom.btnSave.addEventListener('click', saveSettings);
     dom.btnRefresh.addEventListener('click', () => loadProjects(true));
     dom.btnRetry.addEventListener('click', () => loadProjects(true));
+    dom.btnCopyReport.addEventListener('click', handleCopyReport);
+    dom.btnExportCsv.addEventListener('click', handleExportCsv);
     dom.projectGrid.addEventListener('click', handleGridClick);
     dom.radarChips.addEventListener('click', handleRadarClick);
     dom.inputSearch.addEventListener('input', renderDashboard);
@@ -935,6 +1139,7 @@
   // ── Init ──
   function init() {
     bindEvents();
+    setToolbarActionsEnabled(false);
     loadProjects();
   }
 

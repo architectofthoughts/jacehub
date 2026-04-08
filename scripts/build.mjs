@@ -9,7 +9,7 @@ const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 
 const staticEntries = ['index.html', 'style.css', 'app.js'];
-const functionEntries = ['functions/api/projects.js'];
+const functionEntries = ['functions/api/projects.js', 'functions/api/vault.js'];
 
 function assertNodeCheck(relativeFile) {
   const result = spawnSync(process.execPath, ['--check', relativeFile], {

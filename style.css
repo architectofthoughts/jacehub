@@ -778,6 +778,11 @@ body {
   color: #475569;
 }
 
+.card__tag--worker {
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
 .card__signal {
   margin-top: var(--s-md);
   color: var(--c-text);
@@ -1000,6 +1005,176 @@ body {
   font-size: 0.75rem;
   color: var(--c-text-muted);
   font-weight: 500;
+}
+
+/* ── Vault Section ── */
+.vault-section {
+  padding: 0 var(--s-xl) var(--s-md);
+}
+
+.vault-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  margin-bottom: var(--s-lg);
+}
+
+.vault-divider::before,
+.vault-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+}
+
+.vault-divider span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vault-tabs {
+  display: flex;
+  gap: 2px;
+  background: #F1F5F9;
+  border-radius: var(--r-pill);
+  padding: 3px;
+  margin-bottom: var(--s-lg);
+}
+
+.vault-tab {
+  flex: 1;
+  padding: 0.45rem 0.8rem;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.vault-tab:hover {
+  color: var(--c-text);
+}
+
+.vault-tab.is-active {
+  background: #FFFFFF;
+  color: var(--c-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.vault-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+
+.vault-hint {
+  font-size: 0.8rem;
+  color: var(--c-text-muted);
+  font-weight: 500;
+  line-height: 1.5;
+  padding: var(--s-sm) var(--s-md);
+  background: #F8FAFC;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-border);
+}
+
+.pin-input {
+  font-family: 'Inter', monospace;
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.vault-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  padding: var(--s-lg);
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: var(--r-md);
+}
+
+.vault-status__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #15803D;
+}
+
+.vault-id-display {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  padding: var(--s-sm) var(--s-md);
+  background: #FFFFFF;
+  border: 1px solid #D1FAE5;
+  border-radius: var(--r-sm);
+}
+
+.vault-id-display code {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--c-text);
+  word-break: break-all;
+  font-family: 'Inter', monospace;
+}
+
+.vault-id-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: #E2E8F0;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  flex-shrink: 0;
+}
+
+.vault-id-copy:hover {
+  background: #CBD5E1;
+  color: var(--c-text);
+}
+
+.vault-status__actions {
+  display: flex;
+  gap: var(--s-sm);
+  flex-wrap: wrap;
+}
+
+.btn--block {
+  width: 100%;
+  justify-content: center;
+}
+
+.btn--sm {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.btn--danger-text {
+  color: var(--c-error);
+}
+
+.btn--danger-text:hover:not(:disabled) {
+  background: #FEE2E2;
+  color: #B91C1C;
 }
 
 /* ── Toast ── */

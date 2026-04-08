@@ -19,6 +19,7 @@
     ghToken:   'jacehub_gh_token',
     cache:     'jacehub_cache',
     favorites: 'jacehub_favorites',
+    vaultId:   'jacehub_vault_id',
   };
 
   // ── DOM References ──
@@ -60,6 +61,24 @@
     inputAccountId:   $('#input-account-id'),
     inputApiToken:    $('#input-api-token'),
     inputGhToken:     $('#input-gh-token'),
+    // Vault
+    vaultSection:     $('#vault-section'),
+    vaultStatus:      $('#vault-status'),
+    vaultForm:        $('#vault-form'),
+    vaultIdText:      $('#vault-id-text'),
+    btnVaultCopy:     $('#btn-vault-copy'),
+    btnVaultUpdate:   $('#btn-vault-update'),
+    btnVaultDelete:   $('#btn-vault-delete'),
+    vaultTabLoad:     $('#vault-tab-load'),
+    vaultTabSave:     $('#vault-tab-save'),
+    vaultPanelLoad:   $('#vault-panel-load'),
+    vaultPanelSave:   $('#vault-panel-save'),
+    inputVaultId:     $('#input-vault-id'),
+    inputVaultPinLoad:    $('#input-vault-pin-load'),
+    inputVaultPinSave:    $('#input-vault-pin-save'),
+    inputVaultPinConfirm: $('#input-vault-pin-confirm'),
+    btnVaultLoad:     $('#btn-vault-load'),
+    btnVaultSave:     $('#btn-vault-save'),
     // Buttons
     btnSettings:      $('#btn-settings'),
     btnSetup:         $('#btn-setup'),
@@ -156,6 +175,18 @@
     localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
   }
 
+  function getSavedVaultId() {
+    return localStorage.getItem(STORAGE_KEYS.vaultId) || '';
+  }
+
+  function saveVaultId(vaultId) {
+    if (vaultId) {
+      localStorage.setItem(STORAGE_KEYS.vaultId, vaultId);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.vaultId);
+    }
+  }
+
   function isFavoriteProject(projectName) {
     return favoriteProjects.has(String(projectName || '').trim());
   }
@@ -243,6 +274,7 @@
     dom.inputAccountId.value = accountId;
     dom.inputApiToken.value = apiToken;
     dom.inputGhToken.value = ghToken;
+    updateVaultUI();
     dom.modalOverlay.classList.add('is-open');
     dom.modalOverlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -253,6 +285,7 @@
     dom.modalOverlay.classList.remove('is-open');
     dom.modalOverlay.setAttribute('aria-hidden', 'true');
     document.body.style.removeProperty('overflow');
+    clearVaultPinInputs();
     if (lastFocusedElement) {
       lastFocusedElement.focus();
       lastFocusedElement = null;
@@ -295,6 +328,238 @@
 
     const data = await response.json();
     return data.result || [];
+  }
+
+  // ── Vault API ──
+  function clearVaultPinInputs() {
+    dom.inputVaultPinLoad.value = '';
+    dom.inputVaultPinSave.value = '';
+    dom.inputVaultPinConfirm.value = '';
+  }
+
+  function updateVaultUI() {
+    const savedVaultId = getSavedVaultId();
+
+    if (savedVaultId) {
+      dom.vaultStatus.style.display = 'flex';
+      dom.vaultForm.style.display = 'none';
+      dom.vaultIdText.textContent = savedVaultId;
+    } else {
+      dom.vaultStatus.style.display = 'none';
+      dom.vaultForm.style.display = 'block';
+      dom.inputVaultId.value = '';
+    }
+  }
+
+  function switchVaultTab(tab) {
+    const isLoad = tab === 'load';
+    dom.vaultTabLoad.classList.toggle('is-active', isLoad);
+    dom.vaultTabSave.classList.toggle('is-active', !isLoad);
+    dom.vaultTabLoad.setAttribute('aria-selected', String(isLoad));
+    dom.vaultTabSave.setAttribute('aria-selected', String(!isLoad));
+    dom.vaultPanelLoad.style.display = isLoad ? 'flex' : 'none';
+    dom.vaultPanelSave.style.display = isLoad ? 'none' : 'flex';
+    clearVaultPinInputs();
+  }
+
+  async function handleVaultLoad() {
+    const vaultId = dom.inputVaultId.value.trim();
+    const pin = dom.inputVaultPinLoad.value.trim();
+
+    if (!vaultId) {
+      showToast('보관소 ID를 입력해주세요.', 'error');
+      dom.inputVaultId.focus();
+      return;
+    }
+
+    if (!/^\d{6}$/.test(pin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      dom.inputVaultPinLoad.focus();
+      return;
+    }
+
+    dom.btnVaultLoad.disabled = true;
+
+    try {
+      const response = await fetch(`/api/vault?id=${encodeURIComponent(vaultId)}&pin=${encodeURIComponent(pin)}`);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '불러오기에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      const { credentials } = data;
+      dom.inputAccountId.value = credentials.accountId || '';
+      dom.inputApiToken.value = credentials.apiToken || '';
+      dom.inputGhToken.value = credentials.ghToken || '';
+
+      saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken);
+      saveVaultId(vaultId);
+      updateVaultUI();
+      clearVaultPinInputs();
+
+      showToast('클라우드에서 인증 정보를 불러왔습니다.', 'success');
+      loadProjects(true);
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultLoad.disabled = false;
+    }
+  }
+
+  async function handleVaultSave() {
+    const accountId = dom.inputAccountId.value.trim();
+    const apiToken = dom.inputApiToken.value.trim();
+    const ghToken = dom.inputGhToken.value.trim();
+    const pin = dom.inputVaultPinSave.value.trim();
+    const pinConfirm = dom.inputVaultPinConfirm.value.trim();
+
+    if (!accountId || !apiToken) {
+      showToast('Account ID와 API Token을 먼저 입력해주세요.', 'error');
+      dom.inputAccountId.focus();
+      return;
+    }
+
+    if (!/^\d{6}$/.test(pin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      dom.inputVaultPinSave.focus();
+      return;
+    }
+
+    if (pin !== pinConfirm) {
+      showToast('PIN이 일치하지 않습니다.', 'error');
+      dom.inputVaultPinConfirm.focus();
+      return;
+    }
+
+    dom.btnVaultSave.disabled = true;
+
+    try {
+      const response = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, accountId, apiToken, ghToken }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '저장에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      saveVaultId(data.vaultId);
+      updateVaultUI();
+      clearVaultPinInputs();
+
+      showToast('클라우드 보관소에 저장되었습니다. ID를 기억해주세요!', 'success');
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultSave.disabled = false;
+    }
+  }
+
+  async function handleVaultUpdate() {
+    const vaultId = getSavedVaultId();
+    if (!vaultId) return;
+
+    const pin = prompt('현재 보관소의 PIN을 입력하세요 (6자리 숫자):');
+    if (!pin || !/^\d{6}$/.test(pin.trim())) {
+      if (pin !== null) showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      return;
+    }
+
+    const accountId = dom.inputAccountId.value.trim();
+    const apiToken = dom.inputApiToken.value.trim();
+    const ghToken = dom.inputGhToken.value.trim();
+
+    if (!accountId || !apiToken) {
+      showToast('Account ID와 API Token을 먼저 입력해주세요.', 'error');
+      return;
+    }
+
+    dom.btnVaultUpdate.disabled = true;
+
+    try {
+      const response = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pin: pin.trim(),
+          accountId,
+          apiToken,
+          ghToken,
+          vaultId,
+          existingPin: pin.trim(),
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '업데이트에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      showToast('보관소가 업데이트되었습니다.', 'success');
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultUpdate.disabled = false;
+    }
+  }
+
+  async function handleVaultDelete() {
+    const vaultId = getSavedVaultId();
+    if (!vaultId) return;
+
+    const pin = prompt('보관소 삭제를 확인하려면 PIN을 입력하세요 (6자리 숫자):');
+    if (!pin || !/^\d{6}$/.test(pin.trim())) {
+      if (pin !== null) showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      return;
+    }
+
+    if (!confirm('정말로 클라우드 보관소를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    dom.btnVaultDelete.disabled = true;
+
+    try {
+      const response = await fetch(`/api/vault?id=${encodeURIComponent(vaultId)}&pin=${encodeURIComponent(pin.trim())}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '삭제에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      saveVaultId('');
+      updateVaultUI();
+      showToast('클라우드 보관소가 삭제되었습니다.', 'success');
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultDelete.disabled = false;
+    }
+  }
+
+  async function handleVaultCopy() {
+    const vaultId = getSavedVaultId();
+    if (!vaultId) return;
+
+    try {
+      await copyText(vaultId);
+      showToast('보관소 ID가 복사되었습니다.', 'success');
+    } catch {
+      showToast('복사에 실패했습니다.', 'error');
+    }
   }
 
   // ── Render Helpers ──
@@ -477,6 +742,7 @@
       project.framework,
       project._description,
       project.subdomain,
+      project._type,
       ...(project.domains || []),
     ]
       .filter(Boolean)
@@ -860,8 +1126,10 @@
       const description = project._description || '';
       const displayUrl = primaryUrl ? primaryUrl.replace(/^https?:\/\//, '') : '연결된 주소 없음';
       const isFavorite = isFavoriteProject(project.name);
+      const isWorker = project._type === 'worker';
       const meta = [
         `<span class="card__tag card__tag--${radar.severity}">${escapeHtml(radar.label)}</span>`,
+        isWorker ? '<span class="card__tag card__tag--worker">Worker</span>' : '',
         framework ? `<span class="card__tag">${escapeHtml(framework)}</span>` : '',
         domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '<span class="card__tag card__tag--muted">도메인 미연결</span>',
       ].filter(Boolean).join('');
@@ -1130,6 +1398,15 @@
     dom.radarChips.addEventListener('click', handleRadarClick);
     dom.inputSearch.addEventListener('input', renderDashboard);
     dom.filterStatus.addEventListener('change', renderDashboard);
+
+    // Vault events
+    dom.vaultTabLoad.addEventListener('click', () => switchVaultTab('load'));
+    dom.vaultTabSave.addEventListener('click', () => switchVaultTab('save'));
+    dom.btnVaultLoad.addEventListener('click', handleVaultLoad);
+    dom.btnVaultSave.addEventListener('click', handleVaultSave);
+    dom.btnVaultUpdate.addEventListener('click', handleVaultUpdate);
+    dom.btnVaultDelete.addEventListener('click', handleVaultDelete);
+    dom.btnVaultCopy.addEventListener('click', handleVaultCopy);
     dom.sortProjects.addEventListener('change', renderDashboard);
 
     document.addEventListener('keydown', handleDocumentKeydown);

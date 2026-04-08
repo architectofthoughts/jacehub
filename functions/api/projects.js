@@ -148,6 +148,10 @@ export async function onRequest(context) {
       ? (Array.isArray(pagesResult.value.payload?.result) ? pagesResult.value.payload.result : [])
       : [];
 
+    const workersError = workersResult.status === 'rejected'
+      ? (workersResult.reason?.message || 'Workers 조회 실패')
+      : '';
+
     const rawWorkersList = workersResult.status === 'fulfilled'
       ? (Array.isArray(workersResult.value.payload?.result) ? workersResult.value.payload.result : [])
       : [];
@@ -233,7 +237,15 @@ export async function onRequest(context) {
       return project;
     });
 
-    return jsonResponse({ success: true, result: enriched });
+    const meta = {
+      pagesCount: enrichedPages.length,
+      workersCount: workersList.length,
+    };
+    if (workersError) {
+      meta.workersError = workersError;
+    }
+
+    return jsonResponse({ success: true, result: enriched, _meta: meta });
   } catch (error) {
     return jsonResponse(
       { success: false, errors: [{ message: error.message || 'Unexpected error' }] },

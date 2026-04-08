@@ -327,7 +327,7 @@
     }
 
     const data = await response.json();
-    return data.result || [];
+    return { projects: data.result || [], meta: data._meta || {} };
   }
 
   // ── Vault API ──
@@ -1241,7 +1241,7 @@
     setLoading(true);
 
     try {
-      const projectList = await fetchProjects(controller.signal);
+      const { projects: projectList, meta } = await fetchProjects(controller.signal);
       if (requestId !== latestLoadRequestId) return;
 
       if (projectList.length === 0) {
@@ -1255,7 +1255,16 @@
       currentProjects = projectList;
       saveCache(projectList);
       renderDashboard();
-      showToast(`${projectList.length}개 프로젝트를 불러왔습니다.`, 'success');
+
+      const parts = [];
+      if (meta.pagesCount) parts.push(`Pages ${meta.pagesCount}개`);
+      if (meta.workersCount) parts.push(`Workers ${meta.workersCount}개`);
+      const summary = parts.length > 0 ? parts.join(' + ') : `${projectList.length}개 프로젝트`;
+      showToast(`${summary}를 불러왔습니다.`, 'success');
+
+      if (meta.workersError) {
+        showToast(`Workers 조회 실패: API 토큰에 Workers Scripts:Read 권한을 추가하세요.`, 'error');
+      }
     } catch (err) {
       if (err.name === 'AbortError' || requestId !== latestLoadRequestId) return;
 

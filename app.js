@@ -14,12 +14,12 @@
   const STALE_PROJECT_DAYS = 21;
   const CRITICAL_PROJECT_DAYS = 45;
   const STORAGE_KEYS = {
-    accountId: 'jacehub_account_id',
-    apiToken:  'jacehub_api_token',
-    ghToken:   'jacehub_gh_token',
-    cache:     'jacehub_cache',
-    favorites: 'jacehub_favorites',
-    vaultId:   'jacehub_vault_id',
+    accountId:   'jacehub_account_id',
+    apiToken:    'jacehub_api_token',
+    ghToken:     'jacehub_gh_token',
+    cache:       'jacehub_cache',
+    favorites:   'jacehub_favorites',
+    vaultLinked: 'jacehub_vault_linked',
   };
 
   // ── DOM References ──
@@ -65,15 +65,12 @@
     vaultSection:     $('#vault-section'),
     vaultStatus:      $('#vault-status'),
     vaultForm:        $('#vault-form'),
-    vaultIdText:      $('#vault-id-text'),
-    btnVaultCopy:     $('#btn-vault-copy'),
     btnVaultUpdate:   $('#btn-vault-update'),
     btnVaultDelete:   $('#btn-vault-delete'),
     vaultTabLoad:     $('#vault-tab-load'),
     vaultTabSave:     $('#vault-tab-save'),
     vaultPanelLoad:   $('#vault-panel-load'),
     vaultPanelSave:   $('#vault-panel-save'),
-    inputVaultId:     $('#input-vault-id'),
     inputVaultPinLoad:    $('#input-vault-pin-load'),
     inputVaultPinSave:    $('#input-vault-pin-save'),
     inputVaultPinConfirm: $('#input-vault-pin-confirm'),
@@ -175,15 +172,15 @@
     localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
   }
 
-  function getSavedVaultId() {
-    return localStorage.getItem(STORAGE_KEYS.vaultId) || '';
+  function isVaultLinked() {
+    return localStorage.getItem(STORAGE_KEYS.vaultLinked) === '1';
   }
 
-  function saveVaultId(vaultId) {
-    if (vaultId) {
-      localStorage.setItem(STORAGE_KEYS.vaultId, vaultId);
+  function setVaultLinked(linked) {
+    if (linked) {
+      localStorage.setItem(STORAGE_KEYS.vaultLinked, '1');
     } else {
-      localStorage.removeItem(STORAGE_KEYS.vaultId);
+      localStorage.removeItem(STORAGE_KEYS.vaultLinked);
     }
   }
 
@@ -338,16 +335,12 @@
   }
 
   function updateVaultUI() {
-    const savedVaultId = getSavedVaultId();
-
-    if (savedVaultId) {
+    if (isVaultLinked()) {
       dom.vaultStatus.style.display = 'flex';
       dom.vaultForm.style.display = 'none';
-      dom.vaultIdText.textContent = savedVaultId;
     } else {
       dom.vaultStatus.style.display = 'none';
       dom.vaultForm.style.display = 'block';
-      dom.inputVaultId.value = '';
     }
   }
 
@@ -363,14 +356,7 @@
   }
 
   async function handleVaultLoad() {
-    const vaultId = dom.inputVaultId.value.trim();
     const pin = dom.inputVaultPinLoad.value.trim();
-
-    if (!vaultId) {
-      showToast('보관소 ID를 입력해주세요.', 'error');
-      dom.inputVaultId.focus();
-      return;
-    }
 
     if (!/^\d{6}$/.test(pin)) {
       showToast('PIN은 6자리 숫자여야 합니다.', 'error');
@@ -381,7 +367,7 @@
     dom.btnVaultLoad.disabled = true;
 
     try {
-      const response = await fetch(`/api/vault?id=${encodeURIComponent(vaultId)}&pin=${encodeURIComponent(pin)}`);
+      const response = await fetch(`/api/vault?pin=${encodeURIComponent(pin)}`);
       const data = await response.json();
 
       if (!response.ok || !data.success) {
@@ -396,7 +382,7 @@
       dom.inputGhToken.value = credentials.ghToken || '';
 
       saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken);
-      saveVaultId(vaultId);
+      setVaultLinked(true);
       updateVaultUI();
       clearVaultPinInputs();
 
@@ -450,11 +436,11 @@
         return;
       }
 
-      saveVaultId(data.vaultId);
+      setVaultLinked(true);
       updateVaultUI();
       clearVaultPinInputs();
 
-      showToast('클라우드 보관소에 저장되었습니다. ID를 기억해주세요!', 'success');
+      showToast('클라우드 보관소에 저장되었습니다. PIN을 기억해주세요!', 'success');
     } catch (err) {
       showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
     } finally {
@@ -463,12 +449,11 @@
   }
 
   async function handleVaultUpdate() {
-    const vaultId = getSavedVaultId();
-    if (!vaultId) return;
-
-    const pin = prompt('현재 보관소의 PIN을 입력하세요 (6자리 숫자):');
-    if (!pin || !/^\d{6}$/.test(pin.trim())) {
-      if (pin !== null) showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+    const pin = prompt('덮어쓸 보관소의 PIN을 입력하세요 (6자리 숫자):');
+    if (pin === null) return;
+    const trimmedPin = pin.trim();
+    if (!/^\d{6}$/.test(trimmedPin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
       return;
     }
 
@@ -488,12 +473,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pin: pin.trim(),
+          pin: trimmedPin,
           accountId,
           apiToken,
           ghToken,
-          vaultId,
-          existingPin: pin.trim(),
         }),
       });
       const data = await response.json();
@@ -504,6 +487,8 @@
         return;
       }
 
+      setVaultLinked(true);
+      updateVaultUI();
       showToast('보관소가 업데이트되었습니다.', 'success');
     } catch (err) {
       showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
@@ -513,12 +498,11 @@
   }
 
   async function handleVaultDelete() {
-    const vaultId = getSavedVaultId();
-    if (!vaultId) return;
-
-    const pin = prompt('보관소 삭제를 확인하려면 PIN을 입력하세요 (6자리 숫자):');
-    if (!pin || !/^\d{6}$/.test(pin.trim())) {
-      if (pin !== null) showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+    const pin = prompt('삭제할 보관소의 PIN을 입력하세요 (6자리 숫자):');
+    if (pin === null) return;
+    const trimmedPin = pin.trim();
+    if (!/^\d{6}$/.test(trimmedPin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
       return;
     }
 
@@ -529,7 +513,7 @@
     dom.btnVaultDelete.disabled = true;
 
     try {
-      const response = await fetch(`/api/vault?id=${encodeURIComponent(vaultId)}&pin=${encodeURIComponent(pin.trim())}`, {
+      const response = await fetch(`/api/vault?pin=${encodeURIComponent(trimmedPin)}`, {
         method: 'DELETE',
       });
       const data = await response.json();
@@ -540,25 +524,13 @@
         return;
       }
 
-      saveVaultId('');
+      setVaultLinked(false);
       updateVaultUI();
       showToast('클라우드 보관소가 삭제되었습니다.', 'success');
     } catch (err) {
       showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
     } finally {
       dom.btnVaultDelete.disabled = false;
-    }
-  }
-
-  async function handleVaultCopy() {
-    const vaultId = getSavedVaultId();
-    if (!vaultId) return;
-
-    try {
-      await copyText(vaultId);
-      showToast('보관소 ID가 복사되었습니다.', 'success');
-    } catch {
-      showToast('복사에 실패했습니다.', 'error');
     }
   }
 
@@ -1415,7 +1387,6 @@
     dom.btnVaultSave.addEventListener('click', handleVaultSave);
     dom.btnVaultUpdate.addEventListener('click', handleVaultUpdate);
     dom.btnVaultDelete.addEventListener('click', handleVaultDelete);
-    dom.btnVaultCopy.addEventListener('click', handleVaultCopy);
     dom.sortProjects.addEventListener('change', renderDashboard);
 
     document.addEventListener('keydown', handleDocumentKeydown);

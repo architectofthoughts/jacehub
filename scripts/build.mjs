@@ -39,7 +39,7 @@ async function build() {
     throw new Error('index.html must reference style.css and app.js');
   }
 
-  ['app.js', 'functions/api/projects.js'].forEach(assertNodeCheck);
+  ['app.js', ...functionEntries].forEach(assertNodeCheck);
 
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });

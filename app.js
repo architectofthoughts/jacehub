@@ -1234,8 +1234,12 @@
       const summary = parts.length > 0 ? parts.join(' + ') : `${projectList.length}개 프로젝트`;
       showToast(`${summary}를 불러왔습니다.`, 'success');
 
+      if (meta.pagesError) {
+        showToast('Pages 조회 실패: API 토큰에 Cloudflare Pages:Read 권한을 추가하세요.', 'error');
+      }
+
       if (meta.workersError) {
-        showToast(`Workers 조회 실패: API 토큰에 Workers Scripts:Read 권한을 추가하세요.`, 'error');
+        showToast('Workers 조회 실패: API 토큰에 Workers Scripts:Read 권한을 추가하세요.', 'error');
       }
     } catch (err) {
       if (err.name === 'AbortError' || requestId !== latestLoadRequestId) return;

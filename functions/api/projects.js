@@ -144,6 +144,10 @@ export async function onRequest(context) {
       ),
     ]);
 
+    const pagesError = pagesResult.status === 'rejected'
+      ? (pagesResult.reason?.message || 'Pages 조회 실패')
+      : '';
+
     const pagesList = pagesResult.status === 'fulfilled'
       ? (Array.isArray(pagesResult.value.payload?.result) ? pagesResult.value.payload.result : [])
       : [];
@@ -159,6 +163,10 @@ export async function onRequest(context) {
     const workersSubdomain = subdomainResult.status === 'fulfilled'
       ? (subdomainResult.value.payload?.result?.subdomain || '')
       : '';
+
+    if (pagesError && workersError) {
+      throw new Error(pagesError);
+    }
 
     // Exclude Workers that share a name with a Pages project (same project, different view)
     const pagesNames = new Set(pagesList.map((p) => p.name));
@@ -241,6 +249,9 @@ export async function onRequest(context) {
       pagesCount: enrichedPages.length,
       workersCount: workersList.length,
     };
+    if (pagesError) {
+      meta.pagesError = pagesError;
+    }
     if (workersError) {
       meta.workersError = workersError;
     }

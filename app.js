@@ -9,12 +9,17 @@
   // ── Constants ──
   const CACHE_TTL_MS = 10 * 60 * 1000;
   const TOAST_DURATION_MS = 3000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const FRESH_PROJECT_DAYS = 7;
+  const STALE_PROJECT_DAYS = 21;
+  const CRITICAL_PROJECT_DAYS = 45;
   const STORAGE_KEYS = {
-    accountId: 'jacehub_account_id',
-    apiToken:  'jacehub_api_token',
-    ghToken:   'jacehub_gh_token',
-    cache:     'jacehub_cache',
-    favorites: 'jacehub_favorites',
+    accountId:   'jacehub_account_id',
+    apiToken:    'jacehub_api_token',
+    ghToken:     'jacehub_gh_token',
+    cache:       'jacehub_cache',
+    favorites:   'jacehub_favorites',
+    vaultLinked: 'jacehub_vault_linked',
   };
 
   // ── DOM References ──
@@ -33,19 +38,44 @@
     projectGrid:      $('#project-grid'),
     stats:            $('#stats'),
     statTotal:        $('#stat-total'),
+    statAttention:    $('#stat-attention'),
     statActive:       $('#stat-active'),
     statDomains:      $('#stat-domains'),
+    radar:            $('#radar'),
+    radarSummary:     $('#radar-summary'),
+    radarMetricAttention: $('#radar-metric-attention'),
+    radarMetricStale: $('#radar-metric-stale'),
+    radarMetricFresh: $('#radar-metric-fresh'),
+    radarHighlights:  $('#radar-highlights'),
+    radarChips:       $('#radar-chips'),
     toolbar:          $('#toolbar'),
     inputSearch:      $('#input-search'),
     filterStatus:     $('#filter-status'),
     sortProjects:     $('#sort-projects'),
     toolbarSummary:   $('#toolbar-summary'),
+    btnCopyReport:    $('#btn-copy-report'),
+    btnExportCsv:     $('#btn-export-csv'),
     // Modal
     modalOverlay:     $('#modal-overlay'),
     modal:            $('#modal'),
     inputAccountId:   $('#input-account-id'),
     inputApiToken:    $('#input-api-token'),
     inputGhToken:     $('#input-gh-token'),
+    // Vault
+    vaultSection:     $('#vault-section'),
+    vaultStatus:      $('#vault-status'),
+    vaultForm:        $('#vault-form'),
+    btnVaultUpdate:   $('#btn-vault-update'),
+    btnVaultDelete:   $('#btn-vault-delete'),
+    vaultTabLoad:     $('#vault-tab-load'),
+    vaultTabSave:     $('#vault-tab-save'),
+    vaultPanelLoad:   $('#vault-panel-load'),
+    vaultPanelSave:   $('#vault-panel-save'),
+    inputVaultPinLoad:    $('#input-vault-pin-load'),
+    inputVaultPinSave:    $('#input-vault-pin-save'),
+    inputVaultPinConfirm: $('#input-vault-pin-confirm'),
+    btnVaultLoad:     $('#btn-vault-load'),
+    btnVaultSave:     $('#btn-vault-save'),
     // Buttons
     btnSettings:      $('#btn-settings'),
     btnSetup:         $('#btn-setup'),
@@ -64,6 +94,7 @@
   let lastFocusedElement = null;
   let currentProjects = [];
   let favoriteProjects = loadFavorites();
+  let activeRadarFilter = 'all';
 
   // ── Storage ──
   function getConfig() {
@@ -141,6 +172,18 @@
     localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
   }
 
+  function isVaultLinked() {
+    return localStorage.getItem(STORAGE_KEYS.vaultLinked) === '1';
+  }
+
+  function setVaultLinked(linked) {
+    if (linked) {
+      localStorage.setItem(STORAGE_KEYS.vaultLinked, '1');
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.vaultLinked);
+    }
+  }
+
   function isFavoriteProject(projectName) {
     return favoriteProjects.has(String(projectName || '').trim());
   }
@@ -167,6 +210,7 @@
     dom.stateError.style.display = state === 'error' ? 'flex' : 'none';
     dom.projectGrid.style.display = state === 'grid' ? 'grid' : 'none';
     dom.stats.style.display = state === 'grid' ? 'flex' : 'none';
+    dom.radar.style.display = state === 'grid' ? 'grid' : 'none';
     dom.toolbar.style.display = state === 'grid' ? 'grid' : 'none';
     dom.resultsEmpty.style.display = 'none';
     dom.main.setAttribute('data-view-state', state);
@@ -204,6 +248,13 @@
       : `${totalCount}개 중 ${visibleCount}개 표시`;
   }
 
+  function setToolbarActionsEnabled(isEnabled) {
+    [dom.btnCopyReport, dom.btnExportCsv].forEach((button) => {
+      button.disabled = !isEnabled;
+      button.setAttribute('aria-disabled', String(!isEnabled));
+    });
+  }
+
   // ── Modal ──
   function isModalOpen() {
     return dom.modalOverlay.classList.contains('is-open');
@@ -220,6 +271,7 @@
     dom.inputAccountId.value = accountId;
     dom.inputApiToken.value = apiToken;
     dom.inputGhToken.value = ghToken;
+    updateVaultUI();
     dom.modalOverlay.classList.add('is-open');
     dom.modalOverlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -230,6 +282,7 @@
     dom.modalOverlay.classList.remove('is-open');
     dom.modalOverlay.setAttribute('aria-hidden', 'true');
     document.body.style.removeProperty('overflow');
+    clearVaultPinInputs();
     if (lastFocusedElement) {
       lastFocusedElement.focus();
       lastFocusedElement = null;
@@ -271,7 +324,214 @@
     }
 
     const data = await response.json();
-    return data.result || [];
+    return { projects: data.result || [], meta: data._meta || {} };
+  }
+
+  // ── Vault API ──
+  function clearVaultPinInputs() {
+    dom.inputVaultPinLoad.value = '';
+    dom.inputVaultPinSave.value = '';
+    dom.inputVaultPinConfirm.value = '';
+  }
+
+  function updateVaultUI() {
+    if (isVaultLinked()) {
+      dom.vaultStatus.style.display = 'flex';
+      dom.vaultForm.style.display = 'none';
+    } else {
+      dom.vaultStatus.style.display = 'none';
+      dom.vaultForm.style.display = 'block';
+    }
+  }
+
+  function switchVaultTab(tab) {
+    const isLoad = tab === 'load';
+    dom.vaultTabLoad.classList.toggle('is-active', isLoad);
+    dom.vaultTabSave.classList.toggle('is-active', !isLoad);
+    dom.vaultTabLoad.setAttribute('aria-selected', String(isLoad));
+    dom.vaultTabSave.setAttribute('aria-selected', String(!isLoad));
+    dom.vaultPanelLoad.style.display = isLoad ? 'flex' : 'none';
+    dom.vaultPanelSave.style.display = isLoad ? 'none' : 'flex';
+    clearVaultPinInputs();
+  }
+
+  async function handleVaultLoad() {
+    const pin = dom.inputVaultPinLoad.value.trim();
+
+    if (!/^\d{6}$/.test(pin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      dom.inputVaultPinLoad.focus();
+      return;
+    }
+
+    dom.btnVaultLoad.disabled = true;
+
+    try {
+      const response = await fetch(`/api/vault?pin=${encodeURIComponent(pin)}`);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '불러오기에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      const { credentials } = data;
+      dom.inputAccountId.value = credentials.accountId || '';
+      dom.inputApiToken.value = credentials.apiToken || '';
+      dom.inputGhToken.value = credentials.ghToken || '';
+
+      saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken);
+      setVaultLinked(true);
+      updateVaultUI();
+      clearVaultPinInputs();
+
+      showToast('클라우드에서 인증 정보를 불러왔습니다.', 'success');
+      loadProjects(true);
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultLoad.disabled = false;
+    }
+  }
+
+  async function handleVaultSave() {
+    const accountId = dom.inputAccountId.value.trim();
+    const apiToken = dom.inputApiToken.value.trim();
+    const ghToken = dom.inputGhToken.value.trim();
+    const pin = dom.inputVaultPinSave.value.trim();
+    const pinConfirm = dom.inputVaultPinConfirm.value.trim();
+
+    if (!accountId || !apiToken) {
+      showToast('Account ID와 API Token을 먼저 입력해주세요.', 'error');
+      dom.inputAccountId.focus();
+      return;
+    }
+
+    if (!/^\d{6}$/.test(pin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      dom.inputVaultPinSave.focus();
+      return;
+    }
+
+    if (pin !== pinConfirm) {
+      showToast('PIN이 일치하지 않습니다.', 'error');
+      dom.inputVaultPinConfirm.focus();
+      return;
+    }
+
+    dom.btnVaultSave.disabled = true;
+
+    try {
+      const response = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, accountId, apiToken, ghToken }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '저장에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      setVaultLinked(true);
+      updateVaultUI();
+      clearVaultPinInputs();
+
+      showToast('클라우드 보관소에 저장되었습니다. PIN을 기억해주세요!', 'success');
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultSave.disabled = false;
+    }
+  }
+
+  async function handleVaultUpdate() {
+    const pin = prompt('덮어쓸 보관소의 PIN을 입력하세요 (6자리 숫자):');
+    if (pin === null) return;
+    const trimmedPin = pin.trim();
+    if (!/^\d{6}$/.test(trimmedPin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      return;
+    }
+
+    const accountId = dom.inputAccountId.value.trim();
+    const apiToken = dom.inputApiToken.value.trim();
+    const ghToken = dom.inputGhToken.value.trim();
+
+    if (!accountId || !apiToken) {
+      showToast('Account ID와 API Token을 먼저 입력해주세요.', 'error');
+      return;
+    }
+
+    dom.btnVaultUpdate.disabled = true;
+
+    try {
+      const response = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pin: trimmedPin,
+          accountId,
+          apiToken,
+          ghToken,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '업데이트에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      setVaultLinked(true);
+      updateVaultUI();
+      showToast('보관소가 업데이트되었습니다.', 'success');
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultUpdate.disabled = false;
+    }
+  }
+
+  async function handleVaultDelete() {
+    const pin = prompt('삭제할 보관소의 PIN을 입력하세요 (6자리 숫자):');
+    if (pin === null) return;
+    const trimmedPin = pin.trim();
+    if (!/^\d{6}$/.test(trimmedPin)) {
+      showToast('PIN은 6자리 숫자여야 합니다.', 'error');
+      return;
+    }
+
+    if (!confirm('정말로 클라우드 보관소를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    dom.btnVaultDelete.disabled = true;
+
+    try {
+      const response = await fetch(`/api/vault?pin=${encodeURIComponent(trimmedPin)}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg = data?.errors?.[0]?.message || '삭제에 실패했습니다.';
+        showToast(msg, 'error');
+        return;
+      }
+
+      setVaultLinked(false);
+      updateVaultUI();
+      showToast('클라우드 보관소가 삭제되었습니다.', 'success');
+    } catch (err) {
+      showToast(err.message || '네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+      dom.btnVaultDelete.disabled = false;
+    }
   }
 
   // ── Render Helpers ──
@@ -322,9 +582,96 @@
     return date.toLocaleDateString('ko-KR');
   }
 
+  function formatAbsoluteDate(dateStr) {
+    if (!dateStr) return '기록 없음';
+
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '기록 없음';
+
+    return new Intl.DateTimeFormat('ko-KR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  }
+
   function getDeploymentTimestamp(project) {
     const timestamp = new Date(project.latest_deployment?.created_on || '').getTime();
     return Number.isNaN(timestamp) ? 0 : timestamp;
+  }
+
+  function getProjectAgeDays(project) {
+    const timestamp = getDeploymentTimestamp(project);
+    if (!timestamp) return null;
+    return Math.max(0, Math.floor((Date.now() - timestamp) / DAY_MS));
+  }
+
+  function formatDeploymentAge(days) {
+    if (days === null) return '배포 이력 없음';
+    if (days === 0) return '오늘 배포';
+    if (days === 1) return '1일 전 배포';
+    return `${days}일 전 배포`;
+  }
+
+  function getProjectRadar(project) {
+    const statusKey = getProjectStatusKey(project);
+    const ageDays = getProjectAgeDays(project);
+    const hasCustomDomain = (project.domains?.length || 0) > 0;
+    const signals = [];
+    let score = 0;
+
+    if (statusKey === 'failure') {
+      score += 5;
+      signals.push('최근 배포가 실패했습니다');
+    } else if (statusKey === 'active') {
+      score += 2;
+      signals.push('배포가 아직 진행 중입니다');
+    }
+
+    if (ageDays === null) {
+      score += 4;
+      signals.push('배포 기록이 없습니다');
+    } else if (ageDays >= CRITICAL_PROJECT_DAYS) {
+      score += 4;
+      signals.push(`${ageDays}일째 새 배포가 없습니다`);
+    } else if (ageDays >= STALE_PROJECT_DAYS) {
+      score += 2;
+      signals.push(`${ageDays}일째 업데이트가 없습니다`);
+    } else if (ageDays <= FRESH_PROJECT_DAYS && statusKey === 'success') {
+      signals.push(`${formatDeploymentAge(ageDays)}로 최신 상태입니다`);
+    }
+
+    if (!hasCustomDomain) {
+      score += 2;
+      signals.push('커스텀 도메인이 연결되지 않았습니다');
+    }
+
+    if (!project._description) {
+      score += 1;
+      signals.push('저장소 설명이 비어 있습니다');
+    }
+
+    if (isFavoriteProject(project.name)) {
+      signals.push('즐겨찾기 프로젝트입니다');
+    }
+
+    const severity = score >= 5 ? 'attention' : score >= 3 ? 'watch' : 'healthy';
+    const label = severity === 'attention'
+      ? '즉시 확인'
+      : severity === 'watch'
+        ? '관찰 필요'
+        : '정상';
+
+    return {
+      score,
+      severity,
+      label,
+      ageDays,
+      hasCustomDomain,
+      isFresh: ageDays !== null && ageDays <= FRESH_PROJECT_DAYS && statusKey === 'success',
+      isStale: ageDays === null || ageDays >= STALE_PROJECT_DAYS,
+      signals,
+      summary: signals[0] || '최근 상태가 안정적입니다',
+    };
   }
 
   function escapeHtml(str) {
@@ -367,6 +714,7 @@
       project.framework,
       project._description,
       project.subdomain,
+      project._type,
       ...(project.domains || []),
     ]
       .filter(Boolean)
@@ -376,11 +724,170 @@
     return haystack.includes(query);
   }
 
+  function matchesRadarFilter(project) {
+    const radar = getProjectRadar(project);
+
+    switch (activeRadarFilter) {
+      case 'attention':
+        return radar.severity === 'attention';
+      case 'stale':
+        return radar.isStale;
+      case 'fresh':
+        return radar.isFresh;
+      case 'domainless':
+        return !radar.hasCustomDomain;
+      case 'favorites':
+        return isFavoriteProject(project.name);
+      default:
+        return true;
+    }
+  }
+
+  function getStatusFilterLabel(statusFilter) {
+    switch (statusFilter) {
+      case 'favorites':
+        return '즐겨찾기';
+      case 'success':
+        return '활성';
+      case 'active':
+        return '진행 중';
+      case 'failure':
+        return '실패';
+      default:
+        return '전체 상태';
+    }
+  }
+
+  function getRadarFilterLabel(filterKey) {
+    switch (filterKey) {
+      case 'attention':
+        return '주의';
+      case 'stale':
+        return '정체';
+      case 'fresh':
+        return '최근 배포';
+      case 'domainless':
+        return '도메인 없음';
+      case 'favorites':
+        return '즐겨찾기';
+      default:
+        return '전체';
+    }
+  }
+
+  function getFrameworkSummary(projectList) {
+    const counts = new Map();
+
+    projectList.forEach((project) => {
+      const framework = String(project.framework || '').trim();
+      if (!framework) return;
+      counts.set(framework, (counts.get(framework) || 0) + 1);
+    });
+
+    const summary = [...counts.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 3)
+      .map(([framework, count]) => `${framework} ${count}개`)
+      .join(' · ');
+
+    return summary || '프레임워크 정보가 충분하지 않습니다';
+  }
+
+  function getRadarOverview(projectList) {
+    const projectRadarList = projectList.map((project) => ({
+      project,
+      radar: getProjectRadar(project),
+    }));
+
+    const sortedByAttention = [...projectRadarList].sort((left, right) => {
+      const scoreDelta = right.radar.score - left.radar.score;
+      if (scoreDelta !== 0) {
+        return scoreDelta;
+      }
+
+      const ageDelta = (right.radar.ageDays ?? Number.MAX_SAFE_INTEGER) - (left.radar.ageDays ?? Number.MAX_SAFE_INTEGER);
+      if (ageDelta !== 0) {
+        return ageDelta;
+      }
+
+      return getDeploymentTimestamp(left.project) - getDeploymentTimestamp(right.project);
+    });
+
+    const projectsNeedingAttention = sortedByAttention.filter(({ radar }) => radar.score > 0);
+    const highlightProjects = (projectsNeedingAttention.length > 0 ? projectsNeedingAttention : sortedByAttention).slice(0, 3);
+
+    return {
+      attentionCount: projectRadarList.filter(({ radar }) => radar.severity === 'attention').length,
+      staleCount: projectRadarList.filter(({ radar }) => radar.isStale).length,
+      freshCount: projectRadarList.filter(({ radar }) => radar.isFresh).length,
+      domainlessCount: projectRadarList.filter(({ radar }) => !radar.hasCustomDomain).length,
+      favoriteCount: projectList.filter((project) => isFavoriteProject(project.name)).length,
+      frameworkSummary: getFrameworkSummary(projectList),
+      highlightProjects,
+    };
+  }
+
+  function renderRadar(projectList) {
+    const overview = getRadarOverview(projectList);
+    const leadHighlight = overview.highlightProjects[0];
+    const leadSentence = leadHighlight
+      ? `${leadHighlight.project.name}부터 확인하는 편이 좋습니다.`
+      : '아직 표시할 프로젝트가 없습니다.';
+    const balanceSentence = overview.attentionCount > 0
+      ? `즉시 확인 ${overview.attentionCount}개, ${STALE_PROJECT_DAYS}일 이상 정체 ${overview.staleCount}개입니다.`
+      : `현재 치명적 경고는 없고 최근 ${FRESH_PROJECT_DAYS}일 내 배포가 ${overview.freshCount}개입니다.`;
+
+    dom.radarSummary.textContent = `${leadSentence} ${balanceSentence} 프레임워크 분포: ${overview.frameworkSummary}.`;
+    dom.radarMetricAttention.textContent = overview.attentionCount;
+    dom.radarMetricStale.textContent = overview.staleCount;
+    dom.radarMetricFresh.textContent = overview.freshCount;
+
+    dom.radarHighlights.innerHTML = overview.highlightProjects.map(({ project, radar }) => {
+      const deployedAt = formatDeploymentAge(radar.ageDays);
+      const primarySignal = radar.summary;
+      return `
+        <article class="radar-highlight radar-highlight--${radar.severity}">
+          <div class="radar-highlight__header">
+            <span class="radar-highlight__pill">${escapeHtml(radar.label)}</span>
+            <span class="radar-highlight__meta">${escapeHtml(deployedAt)}</span>
+          </div>
+          <strong class="radar-highlight__name">${escapeHtml(project.name)}</strong>
+          <p class="radar-highlight__desc">${escapeHtml(primarySignal)}</p>
+        </article>
+      `;
+    }).join('');
+
+    const filters = [
+      { key: 'all', label: '전체', count: projectList.length },
+      { key: 'attention', label: '주의', count: overview.attentionCount },
+      { key: 'stale', label: '정체', count: overview.staleCount },
+      { key: 'fresh', label: '최근 배포', count: overview.freshCount },
+      { key: 'domainless', label: '도메인 없음', count: overview.domainlessCount },
+      { key: 'favorites', label: '즐겨찾기', count: overview.favoriteCount },
+    ];
+
+    dom.radarChips.innerHTML = filters.map((filter) => `
+      <button
+        class="radar-chip${activeRadarFilter === filter.key ? ' is-active' : ''}"
+        type="button"
+        data-radar-filter="${filter.key}"
+        aria-pressed="${String(activeRadarFilter === filter.key)}"
+      >
+        <span>${escapeHtml(filter.label)}</span>
+        <strong class="radar-chip__count">${filter.count}</strong>
+      </button>
+    `).join('');
+  }
+
   function filterProjects(projectList) {
     const query = dom.inputSearch.value.trim().toLowerCase();
     const statusFilter = dom.filterStatus.value;
 
     return projectList.filter((project) => {
+      if (!matchesRadarFilter(project)) {
+        return false;
+      }
+
       if (!matchesSearch(project, query)) {
         return false;
       }
@@ -397,11 +904,145 @@
     });
   }
 
+  function getVisibleProjects() {
+    return sortProjects(filterProjects(currentProjects));
+  }
+
+  function formatCsvValue(value) {
+    const normalized = String(value ?? '').replace(/\r?\n/g, ' ').trim();
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+
+  function createExportTimestamp() {
+    return new Date().toISOString().replace(/[:.]/g, '-');
+  }
+
+  function downloadTextFile(filename, contents, type) {
+    const blob = new Blob([contents], { type });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function copyText(text) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+
+    if (!copied) {
+      throw new Error('클립보드에 복사하지 못했습니다.');
+    }
+  }
+
+  function buildProjectsCsv(projectList) {
+    const header = [
+      'project_name',
+      'status',
+      'radar_label',
+      'radar_score',
+      'framework',
+      'primary_url',
+      'domain_count',
+      'last_deployed_at',
+      'last_deployed_relative',
+      'favorite',
+      'summary',
+      'description',
+    ];
+
+    const rows = projectList.map((project) => {
+      const radar = getProjectRadar(project);
+      const status = getDeploymentStatus(project);
+      const deployedAt = project.latest_deployment?.created_on || '';
+
+      return [
+        project.name || '',
+        status.label,
+        radar.label,
+        radar.score,
+        project.framework || '',
+        getPrimaryUrl(project),
+        project.domains?.length || 0,
+        deployedAt,
+        getRelativeTime(deployedAt),
+        isFavoriteProject(project.name) ? 'yes' : 'no',
+        radar.summary,
+        project._description || '',
+      ].map(formatCsvValue).join(',');
+    });
+
+    return [header.join(','), ...rows].join('\n');
+  }
+
+  function buildStatusReport(projectList) {
+    const overview = getRadarOverview(projectList);
+    const searchQuery = dom.inputSearch.value.trim();
+    const statusFilterLabel = getStatusFilterLabel(dom.filterStatus.value);
+    const radarFilterLabel = getRadarFilterLabel(activeRadarFilter);
+    const sortLabel = dom.sortProjects.options[dom.sortProjects.selectedIndex]?.textContent || '최근 배포순';
+    const generatedAt = formatAbsoluteDate(new Date().toISOString());
+    const projectLines = projectList.slice(0, 10).map((project) => {
+      const radar = getProjectRadar(project);
+      const status = getDeploymentStatus(project);
+      const deployedAt = formatDeploymentAge(radar.ageDays);
+      return `- ${project.name}: ${status.label} / ${radar.label} / ${deployedAt} / ${radar.summary}`;
+    });
+
+    return [
+      '# JaceHub 배포 상태 보고서',
+      '',
+      `생성 시각: ${generatedAt}`,
+      `표시 프로젝트: ${projectList.length}개`,
+      `레이더 필터: ${radarFilterLabel}`,
+      `상태 필터: ${statusFilterLabel}`,
+      `정렬: ${sortLabel}`,
+      `검색어: ${searchQuery || '없음'}`,
+      '',
+      '## 요약',
+      `- 즉시 확인: ${overview.attentionCount}개`,
+      `- 정체 프로젝트: ${overview.staleCount}개`,
+      `- 최근 ${FRESH_PROJECT_DAYS}일 배포: ${overview.freshCount}개`,
+      `- 도메인 미연결: ${overview.domainlessCount}개`,
+      `- 즐겨찾기 포함: ${overview.favoriteCount}개`,
+      '',
+      '## 우선 확인 프로젝트',
+      ...(projectLines.length > 0 ? projectLines : ['- 표시할 프로젝트가 없습니다.']),
+    ].join('\n');
+  }
+
   function sortProjects(projectList) {
     const sortValue = dom.sortProjects.value;
     const sortedProjects = [...projectList];
 
     sortedProjects.sort((left, right) => {
+      if (sortValue === 'attention') {
+        const radarDelta = getProjectRadar(right).score - getProjectRadar(left).score;
+        if (radarDelta !== 0) {
+          return radarDelta;
+        }
+
+        const ageDelta = (getProjectRadar(right).ageDays ?? Number.MAX_SAFE_INTEGER) - (getProjectRadar(left).ageDays ?? Number.MAX_SAFE_INTEGER);
+        if (ageDelta !== 0) {
+          return ageDelta;
+        }
+      }
+
       const favoriteDelta = Number(isFavoriteProject(right.name)) - Number(isFavoriteProject(left.name));
       if (favoriteDelta !== 0) {
         return favoriteDelta;
@@ -428,11 +1069,14 @@
     const safeProjectList = Array.isArray(projectList) ? projectList : [];
     const totalDomains = currentProjects.reduce((sum, project) => sum + (project.domains?.length || 0), 0);
     const activeCount = currentProjects.filter((project) => getProjectStatusKey(project) === 'success').length;
+    const attentionCount = currentProjects.filter((project) => getProjectRadar(project).severity === 'attention').length;
 
     dom.statTotal.textContent = currentProjects.length;
+    dom.statAttention.textContent = attentionCount;
     dom.statActive.textContent = activeCount;
     dom.statDomains.textContent = totalDomains;
     updateToolbarSummary(currentProjects.length, safeProjectList.length);
+    setToolbarActionsEnabled(safeProjectList.length > 0);
 
     if (safeProjectList.length === 0) {
       showState('grid');
@@ -446,6 +1090,7 @@
     dom.projectGrid.style.display = 'grid';
     dom.projectGrid.innerHTML = safeProjectList.map((project, index) => {
       const status = getDeploymentStatus(project);
+      const radar = getProjectRadar(project);
       const domains = project.domains || [];
       const framework = project.framework || '';
       const deployedAt = project.latest_deployment?.created_on;
@@ -453,9 +1098,12 @@
       const description = project._description || '';
       const displayUrl = primaryUrl ? primaryUrl.replace(/^https?:\/\//, '') : '연결된 주소 없음';
       const isFavorite = isFavoriteProject(project.name);
+      const isWorker = project._type === 'worker';
       const meta = [
+        `<span class="card__tag card__tag--${radar.severity}">${escapeHtml(radar.label)}</span>`,
+        isWorker ? '<span class="card__tag card__tag--worker">Worker</span>' : '',
         framework ? `<span class="card__tag">${escapeHtml(framework)}</span>` : '',
-        domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '',
+        domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '<span class="card__tag card__tag--muted">도메인 미연결</span>',
       ].filter(Boolean).join('');
 
       return `
@@ -483,6 +1131,7 @@
           </div>
           ${description ? `<p class="card__desc">${escapeHtml(description)}</p>` : ''}
           ${meta ? `<div class="card__meta">${meta}</div>` : ''}
+          <p class="card__signal">${escapeHtml(radar.summary)}</p>
           <div class="card__footer">
             <div class="card__actions">
               <div class="card__url">
@@ -523,9 +1172,9 @@
       return;
     }
 
-    const filteredProjects = filterProjects(currentProjects);
-    const sortedProjects = sortProjects(filteredProjects);
-    renderProjects(sortedProjects);
+    renderRadar(currentProjects);
+
+    renderProjects(getVisibleProjects());
   }
 
   // ── Load ──
@@ -564,7 +1213,7 @@
     setLoading(true);
 
     try {
-      const projectList = await fetchProjects(controller.signal);
+      const { projects: projectList, meta } = await fetchProjects(controller.signal);
       if (requestId !== latestLoadRequestId) return;
 
       if (projectList.length === 0) {
@@ -578,7 +1227,20 @@
       currentProjects = projectList;
       saveCache(projectList);
       renderDashboard();
-      showToast(`${projectList.length}개 프로젝트를 불러왔습니다.`, 'success');
+
+      const parts = [];
+      if (meta.pagesCount) parts.push(`Pages ${meta.pagesCount}개`);
+      if (meta.workersCount) parts.push(`Workers ${meta.workersCount}개`);
+      const summary = parts.length > 0 ? parts.join(' + ') : `${projectList.length}개 프로젝트`;
+      showToast(`${summary}를 불러왔습니다.`, 'success');
+
+      if (meta.pagesError) {
+        showToast('Pages 조회 실패: API 토큰에 Cloudflare Pages:Read 권한을 추가하세요.', 'error');
+      }
+
+      if (meta.workersError) {
+        showToast('Workers 조회 실패: API 토큰에 Workers Scripts:Read 권한을 추가하세요.', 'error');
+      }
     } catch (err) {
       if (err.name === 'AbortError' || requestId !== latestLoadRequestId) return;
 
@@ -616,6 +1278,34 @@
     closeModal();
     showToast('설정이 저장되었습니다.', 'success');
     loadProjects(true);
+  }
+
+  async function handleCopyReport() {
+    const visibleProjects = getVisibleProjects();
+    if (visibleProjects.length === 0) {
+      showToast('복사할 프로젝트가 없습니다.', 'error');
+      return;
+    }
+
+    try {
+      await copyText(buildStatusReport(visibleProjects));
+      showToast(`현재 목록 ${visibleProjects.length}개를 보고서로 복사했습니다.`, 'success');
+    } catch (error) {
+      showToast(error.message || '보고서 복사에 실패했습니다.', 'error');
+    }
+  }
+
+  function handleExportCsv() {
+    const visibleProjects = getVisibleProjects();
+    if (visibleProjects.length === 0) {
+      showToast('내보낼 프로젝트가 없습니다.', 'error');
+      return;
+    }
+
+    const filename = `jacehub-projects-${createExportTimestamp()}.csv`;
+    const csvContent = buildProjectsCsv(visibleProjects);
+    downloadTextFile(filename, csvContent, 'text/csv;charset=utf-8');
+    showToast(`현재 목록 ${visibleProjects.length}개를 CSV로 내보냈습니다.`, 'success');
   }
 
   function handleDocumentKeydown(event) {
@@ -661,6 +1351,17 @@
     );
   }
 
+  function handleRadarClick(event) {
+    const filterButton = event.target.closest('[data-radar-filter]');
+    if (!filterButton) return;
+
+    const nextFilter = filterButton.getAttribute('data-radar-filter') || 'all';
+    activeRadarFilter = activeRadarFilter === nextFilter && nextFilter !== 'all'
+      ? 'all'
+      : nextFilter;
+    renderDashboard();
+  }
+
   function bindEvents() {
     dom.btnSettings.addEventListener('click', openModal);
     dom.btnSetup.addEventListener('click', openModal);
@@ -676,9 +1377,20 @@
     dom.btnSave.addEventListener('click', saveSettings);
     dom.btnRefresh.addEventListener('click', () => loadProjects(true));
     dom.btnRetry.addEventListener('click', () => loadProjects(true));
+    dom.btnCopyReport.addEventListener('click', handleCopyReport);
+    dom.btnExportCsv.addEventListener('click', handleExportCsv);
     dom.projectGrid.addEventListener('click', handleGridClick);
+    dom.radarChips.addEventListener('click', handleRadarClick);
     dom.inputSearch.addEventListener('input', renderDashboard);
     dom.filterStatus.addEventListener('change', renderDashboard);
+
+    // Vault events
+    dom.vaultTabLoad.addEventListener('click', () => switchVaultTab('load'));
+    dom.vaultTabSave.addEventListener('click', () => switchVaultTab('save'));
+    dom.btnVaultLoad.addEventListener('click', handleVaultLoad);
+    dom.btnVaultSave.addEventListener('click', handleVaultSave);
+    dom.btnVaultUpdate.addEventListener('click', handleVaultUpdate);
+    dom.btnVaultDelete.addEventListener('click', handleVaultDelete);
     dom.sortProjects.addEventListener('change', renderDashboard);
 
     document.addEventListener('keydown', handleDocumentKeydown);
@@ -688,6 +1400,7 @@
   // ── Init ──
   function init() {
     bindEvents();
+    setToolbarActionsEnabled(false);
     loadProjects();
   }
 

@@ -78,6 +78,24 @@ async function mapWithConcurrency(items, limit, mapper) {
   return results;
 }
 
+function normalizeWorkerScript(script, workersSubdomain) {
+  const modifiedOn = script.modified_on || script.created_on || '';
+
+  return {
+    name: script.id,
+    subdomain: workersSubdomain ? `${script.id}.${workersSubdomain}.workers.dev` : '',
+    domains: [],
+    latest_deployment: {
+      created_on: modifiedOn,
+      latest_stage: { status: 'success', name: 'deploy' },
+    },
+    source: {},
+    framework: '',
+    created_on: script.created_on || '',
+    _type: 'worker',
+  };
+}
+
 export async function onRequest(context) {
   if (context.request.method === 'OPTIONS') {
     return new Response(null, { headers: CORS_HEADERS });
@@ -107,13 +125,78 @@ export async function onRequest(context) {
   };
 
   try {
-    const { payload: listData } = await fetchJson(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects`,
-      { headers: cfHeaders },
-      'Cloudflare 프로젝트 목록을 불러오지 못했습니다'
-    );
+    // Fetch Pages projects, Workers scripts, and Workers subdomain in parallel
+    const [pagesResult, workersResult, subdomainResult] = await Promise.allSettled([
+      fetchJson(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects`,
+        { headers: cfHeaders },
+        'Cloudflare Pages 프로젝트 목록을 불러오지 못했습니다'
+      ),
+      fetchJson(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts`,
+        { headers: cfHeaders },
+        'Workers 스크립트 목록을 불러오지 못했습니다'
+      ),
+      fetchJson(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/subdomain`,
+        { headers: cfHeaders },
+        'Workers 서브도메인을 불러오지 못했습니다'
+      ),
+    ]);
 
-    const projectList = Array.isArray(listData?.result) ? listData.result : [];
+    const pagesError = pagesResult.status === 'rejected'
+      ? (pagesResult.reason?.message || 'Pages 조회 실패')
+      : '';
+
+    const pagesList = pagesResult.status === 'fulfilled'
+      ? (Array.isArray(pagesResult.value.payload?.result) ? pagesResult.value.payload.result : [])
+      : [];
+
+    const workersError = workersResult.status === 'rejected'
+      ? (workersResult.reason?.message || 'Workers 조회 실패')
+      : '';
+
+    const rawWorkersList = workersResult.status === 'fulfilled'
+      ? (Array.isArray(workersResult.value.payload?.result) ? workersResult.value.payload.result : [])
+      : [];
+
+    const workersSubdomain = subdomainResult.status === 'fulfilled'
+      ? (subdomainResult.value.payload?.result?.subdomain || '')
+      : '';
+
+    if (pagesError && workersError) {
+      throw new Error(pagesError);
+    }
+
+    // Exclude Workers that share a name with a Pages project (same project, different view)
+    const pagesNames = new Set(pagesList.map((p) => p.name));
+    const workersList = rawWorkersList
+      .filter((script) => !pagesNames.has(script.id))
+      .map((script) => normalizeWorkerScript(script, workersSubdomain));
+
+    // Enrich Pages projects with detail data
+    const enrichedPages = await mapWithConcurrency(pagesList, PROJECT_DETAIL_CONCURRENCY, async (project) => {
+      let detail = project;
+
+      try {
+        const { payload: detailData } = await fetchJson(
+          `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${encodeURIComponent(project.name)}`,
+          { headers: cfHeaders },
+          `프로젝트 ${project.name} 상세 정보를 불러오지 못했습니다`
+        );
+        if (detailData?.result) {
+          detail = detailData.result;
+        }
+      } catch {
+        // Fall back to the list payload when detail lookup fails.
+      }
+
+      detail._type = 'pages';
+      return detail;
+    });
+
+    // Merge Pages + Workers, then enrich all with GitHub descriptions
+    const allProjects = [...enrichedPages, ...workersList];
     const repoDescriptionCache = new Map();
     let ghUsernamePromise = null;
 
@@ -131,24 +214,9 @@ export async function onRequest(context) {
       return ghUsernamePromise;
     }
 
-    const enriched = await mapWithConcurrency(projectList, PROJECT_DETAIL_CONCURRENCY, async (project) => {
-      let detail = project;
-
-      try {
-        const { payload: detailData } = await fetchJson(
-          `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${encodeURIComponent(project.name)}`,
-          { headers: cfHeaders },
-          `프로젝트 ${project.name} 상세 정보를 불러오지 못했습니다`
-        );
-        if (detailData?.result) {
-          detail = detailData.result;
-        }
-      } catch {
-        // Fall back to the list payload when detail lookup fails.
-      }
-
-      let owner = detail.source?.config?.owner || project.source?.config?.owner || '';
-      let repoName = detail.source?.config?.repo_name || project.source?.config?.repo_name || '';
+    const enriched = await mapWithConcurrency(allProjects, PROJECT_DETAIL_CONCURRENCY, async (project) => {
+      let owner = project.source?.config?.owner || '';
+      let repoName = project.source?.config?.repo_name || '';
 
       if ((!owner || !repoName) && ghToken) {
         owner = await getGithubUsername();
@@ -156,7 +224,7 @@ export async function onRequest(context) {
       }
 
       if (!owner || !repoName) {
-        return detail;
+        return project;
       }
 
       const repoKey = `${owner}/${repoName}`.toLowerCase();
@@ -173,11 +241,22 @@ export async function onRequest(context) {
         );
       }
 
-      detail._description = await repoDescriptionCache.get(repoKey);
-      return detail;
+      project._description = await repoDescriptionCache.get(repoKey);
+      return project;
     });
 
-    return jsonResponse({ ...listData, result: enriched });
+    const meta = {
+      pagesCount: enrichedPages.length,
+      workersCount: workersList.length,
+    };
+    if (pagesError) {
+      meta.pagesError = pagesError;
+    }
+    if (workersError) {
+      meta.workersError = workersError;
+    }
+
+    return jsonResponse({ success: true, result: enriched, _meta: meta });
   } catch (error) {
     return jsonResponse(
       { success: false, errors: [{ message: error.message || 'Unexpected error' }] },

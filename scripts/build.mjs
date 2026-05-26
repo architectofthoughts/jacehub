@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 
-const staticEntries = ['index.html', 'style.css', 'app.js'];
+const staticEntries = ['index.html', 'style.css', 'app.js', 'lobby.html', 'lobby.css', 'lobby.js'];
 const functionEntries = ['functions/api/projects.js', 'functions/api/vault.js'];
 
 function assertNodeCheck(relativeFile) {
@@ -39,7 +39,12 @@ async function build() {
     throw new Error('index.html must reference style.css and app.js');
   }
 
-  ['app.js', ...functionEntries].forEach(assertNodeCheck);
+  const lobbyHtml = await readFile(path.join(rootDir, 'lobby.html'), 'utf8');
+  if (!lobbyHtml.includes('lobby.css') || !lobbyHtml.includes('lobby.js')) {
+    throw new Error('lobby.html must reference lobby.css and lobby.js');
+  }
+
+  ['app.js', 'lobby.js', ...functionEntries].forEach(assertNodeCheck);
 
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });

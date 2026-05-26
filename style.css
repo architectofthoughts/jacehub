@@ -1316,3 +1316,111 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--c-border-hover);
 }
+
+/* ═══════════════════════════════════════════════
+   Lobby additions — meta edit button + meta modal
+   ═══════════════════════════════════════════════ */
+
+/* Card header right cluster (meta button + status) */
+.card__header-side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+  flex-shrink: 0;
+}
+
+/* Card meta edit button — quiet pencil icon next to status */
+.card__meta-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.card__meta-edit:hover {
+  border-color: var(--c-border-hover);
+  color: var(--c-accent);
+}
+.card__meta-edit:focus-visible {
+  outline: none;
+  border-color: var(--c-accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* Meta modal — reuses base .modal-overlay / .modal styles */
+.modal--meta {
+  max-width: 460px;
+}
+.meta-modal__project {
+  color: var(--c-accent);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.meta-modal__hint {
+  font-size: 0.8125rem;
+  color: var(--c-text-muted);
+  margin-bottom: var(--s-lg);
+  line-height: 1.5;
+  padding: var(--s-sm) var(--s-md);
+  background: var(--c-surface-hover);
+  border-radius: var(--r-md);
+  border-left: 2px solid var(--c-accent);
+}
+.meta-icon-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+}
+.meta-icon-input {
+  flex: 1;
+  font-size: 1.25rem;
+  text-align: center;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', var(--font);
+}
+.meta-icon-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--g-accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+  user-select: none;
+}
+.meta-icon-preview.is-emoji {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', var(--font);
+  font-weight: 400;
+}
+
+/* Meta modal footer — split: reset on the left, cancel/save on the right */
+.modal__footer--meta {
+  justify-content: space-between;
+}
+.modal__footer-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+}
+
+/* Danger-text variant for the reset button */
+.btn--danger-text {
+  color: var(--c-text-muted);
+}
+.btn--danger-text:hover {
+  color: var(--c-error);
+  border-color: var(--c-error);
+}

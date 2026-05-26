@@ -20,7 +20,20 @@
     cache:       'jacehub_cache',
     favorites:   'jacehub_favorites',
     vaultLinked: 'jacehub_vault_linked',
+    lobbyCache:  'jacehub_lobby_cache',
+    lobbyMeta:   'jacehub_lobby_meta',
   };
+
+  // Categories surfaced in the lobby meta editor.
+  const LOBBY_CATEGORIES = [
+    { value: 'game',         label: '게임' },
+    { value: 'tool',         label: '도구' },
+    { value: 'experiment',   label: '실험' },
+    { value: 'util',         label: '유틸' },
+    { value: 'productivity', label: '생산성' },
+    { value: 'learning',     label: '학습' },
+    { value: 'other',        label: '기타' },
+  ];
 
   // ── DOM References ──
   const $ = (sel) => document.querySelector(sel);
@@ -84,9 +97,24 @@
     btnSave:          $('#btn-save'),
     btnCancel:        $('#btn-cancel'),
     btnModalClose:    $('#btn-modal-close'),
+    // Lobby Meta Modal
+    metaModalOverlay: $('#meta-modal-overlay'),
+    metaModal:        $('#meta-modal'),
+    metaModalProject: $('#meta-modal-project'),
+    metaInputDesc:    $('#meta-input-desc'),
+    metaInputIcon:    $('#meta-input-icon'),
+    metaSelectCat:    $('#meta-select-category'),
+    btnMetaSave:      $('#btn-meta-save'),
+    btnMetaCancel:    $('#btn-meta-cancel'),
+    btnMetaClose:     $('#btn-meta-close'),
+    btnMetaReset:     $('#btn-meta-reset'),
+    metaIconPreview:  $('#meta-icon-preview'),
     // Toast
     toastContainer:   $('#toast-container'),
   };
+
+  // Active project name currently being edited in the lobby meta modal.
+  let activeMetaProjectName = '';
 
   // ── State ──
   let activeFetchController = null;
@@ -123,6 +151,7 @@
       timestamp: Date.now(),
       projects: projectList,
     }));
+    saveLobbySnapshot();
   }
 
   function loadCache() {
@@ -170,6 +199,46 @@
 
   function saveFavorites() {
     localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
+  }
+
+  // ── Lobby meta + snapshot ──
+  function loadLobbyMeta() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.lobbyMeta);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveLobbyMeta(meta) {
+    localStorage.setItem(STORAGE_KEYS.lobbyMeta, JSON.stringify(meta || {}));
+  }
+
+  function projectSnapshotForLobby(project) {
+    return {
+      name: project.name,
+      type: project._type || 'pages',
+      description: project._description || '',
+      subdomain: project.subdomain || '',
+      domains: project.domains || [],
+      framework: project.framework || '',
+      created_on: project.created_on || '',
+      latest_deployment_on: project.latest_deployment?.created_on || '',
+    };
+  }
+
+  function saveLobbySnapshot() {
+    const apps = currentProjects
+      .filter((project) => isFavoriteProject(project.name))
+      .map(projectSnapshotForLobby);
+
+    localStorage.setItem(STORAGE_KEYS.lobbyCache, JSON.stringify({
+      savedAt: Date.now(),
+      apps,
+    }));
   }
 
   function isVaultLinked() {
@@ -287,6 +356,108 @@
       lastFocusedElement.focus();
       lastFocusedElement = null;
     }
+  }
+
+  // ── Lobby Meta Modal ──
+  function isMetaModalOpen() {
+    return dom.metaModalOverlay && dom.metaModalOverlay.classList.contains('is-open');
+  }
+
+  function populateMetaCategorySelect() {
+    if (!dom.metaSelectCat || dom.metaSelectCat.dataset.populated === '1') return;
+    dom.metaSelectCat.innerHTML = LOBBY_CATEGORIES
+      .map((c) => `<option value="${c.value}">${c.label}</option>`)
+      .join('');
+    dom.metaSelectCat.dataset.populated = '1';
+  }
+
+  function renderMetaIconPreview() {
+    if (!dom.metaIconPreview) return;
+    const iconValue = (dom.metaInputIcon?.value || '').trim();
+    if (iconValue) {
+      dom.metaIconPreview.textContent = iconValue.slice(0, 2);
+      dom.metaIconPreview.classList.add('is-emoji');
+    } else {
+      const name = activeMetaProjectName || '?';
+      const initial = ([...name.trim()][0] || '?').toUpperCase();
+      dom.metaIconPreview.textContent = initial;
+      dom.metaIconPreview.classList.remove('is-emoji');
+    }
+  }
+
+  function openLobbyMetaModal(projectName) {
+    if (!dom.metaModalOverlay) return;
+    const name = String(projectName || '').trim();
+    if (!name) return;
+
+    populateMetaCategorySelect();
+    activeMetaProjectName = name;
+
+    const meta = loadLobbyMeta();
+    const entry = meta[name] || {};
+    const project = currentProjects.find((p) => p.name === name);
+    const ghDescription = project?._description || '';
+
+    if (dom.metaModalProject) dom.metaModalProject.textContent = name;
+    if (dom.metaInputDesc) {
+      dom.metaInputDesc.value = entry.description || '';
+      dom.metaInputDesc.placeholder = ghDescription || '예: 다이어트 디데이 타이머';
+    }
+    if (dom.metaInputIcon) dom.metaInputIcon.value = entry.icon || '';
+    if (dom.metaSelectCat) dom.metaSelectCat.value = entry.category || 'other';
+    renderMetaIconPreview();
+
+    lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dom.metaModalOverlay.classList.add('is-open');
+    dom.metaModalOverlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => dom.metaInputDesc?.focus(), 200);
+  }
+
+  function closeLobbyMetaModal() {
+    if (!dom.metaModalOverlay) return;
+    dom.metaModalOverlay.classList.remove('is-open');
+    dom.metaModalOverlay.setAttribute('aria-hidden', 'true');
+    document.body.style.removeProperty('overflow');
+    activeMetaProjectName = '';
+    if (lastFocusedElement) {
+      lastFocusedElement.focus();
+      lastFocusedElement = null;
+    }
+  }
+
+  function saveLobbyMetaForActive() {
+    if (!activeMetaProjectName) {
+      closeLobbyMetaModal();
+      return;
+    }
+    const meta = loadLobbyMeta();
+    const description = (dom.metaInputDesc?.value || '').trim();
+    const icon = (dom.metaInputIcon?.value || '').trim();
+    const category = dom.metaSelectCat?.value || 'other';
+
+    if (!description && !icon && category === 'other') {
+      delete meta[activeMetaProjectName];
+    } else {
+      meta[activeMetaProjectName] = { description, icon, category };
+    }
+    saveLobbyMeta(meta);
+    showToast(`${activeMetaProjectName}의 로비 정보를 저장했습니다.`, 'success');
+    closeLobbyMetaModal();
+  }
+
+  function resetLobbyMetaForActive() {
+    if (!activeMetaProjectName) return;
+    const meta = loadLobbyMeta();
+    if (meta[activeMetaProjectName]) {
+      delete meta[activeMetaProjectName];
+      saveLobbyMeta(meta);
+    }
+    if (dom.metaInputDesc) dom.metaInputDesc.value = '';
+    if (dom.metaInputIcon) dom.metaInputIcon.value = '';
+    if (dom.metaSelectCat) dom.metaSelectCat.value = 'other';
+    renderMetaIconPreview();
+    showToast(`${activeMetaProjectName}의 로비 정보를 초기화했습니다.`, 'info');
   }
 
   // ── Toast ──
@@ -1124,10 +1295,26 @@
               </button>
               <span class="card__name">${escapeHtml(project.name)}</span>
             </div>
-            <span class="card__status card__status--${status.class}">
-              <span class="card__status-dot"></span>
-              ${status.label}
-            </span>
+            <div class="card__header-side">
+              ${isFavorite ? `
+                <button
+                  class="card__meta-edit"
+                  type="button"
+                  data-project-meta="${escapeAttribute(project.name)}"
+                  aria-label="${escapeAttribute(project.name)} 로비 정보 편집"
+                  title="로비에 보일 정보 편집"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+              ` : ''}
+              <span class="card__status card__status--${status.class}">
+                <span class="card__status-dot"></span>
+                ${status.label}
+              </span>
+            </div>
           </div>
           ${description ? `<p class="card__desc">${escapeHtml(description)}</p>` : ''}
           ${meta ? `<div class="card__meta">${meta}</div>` : ''}
@@ -1309,8 +1496,20 @@
   }
 
   function handleDocumentKeydown(event) {
-    if (event.key === 'Escape' && isModalOpen()) {
-      closeModal();
+    if (event.key === 'Escape') {
+      if (isMetaModalOpen()) {
+        closeLobbyMetaModal();
+        return;
+      }
+      if (isModalOpen()) {
+        closeModal();
+        return;
+      }
+    }
+
+    if (isMetaModalOpen() && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      saveLobbyMetaForActive();
       return;
     }
 
@@ -1339,14 +1538,24 @@
   }
 
   function handleGridClick(event) {
+    const metaButton = event.target.closest('[data-project-meta]');
+    if (metaButton) {
+      const projectName = metaButton.getAttribute('data-project-meta') || '';
+      openLobbyMetaModal(projectName);
+      return;
+    }
+
     const favoriteButton = event.target.closest('[data-project-favorite]');
     if (!favoriteButton) return;
 
     const projectName = favoriteButton.getAttribute('data-project-favorite') || '';
     const isFavorite = toggleFavoriteProject(projectName);
+    saveLobbySnapshot();
     renderDashboard();
     showToast(
-      isFavorite ? `${projectName}을 즐겨찾기에 추가했습니다.` : `${projectName}을 즐겨찾기에서 제거했습니다.`,
+      isFavorite
+        ? `${projectName}을 즐겨찾기에 추가했습니다. 로비에 자동으로 등장해요.`
+        : `${projectName}을 즐겨찾기에서 제거했습니다.`,
       'success'
     );
   }
@@ -1392,6 +1601,20 @@
     dom.btnVaultUpdate.addEventListener('click', handleVaultUpdate);
     dom.btnVaultDelete.addEventListener('click', handleVaultDelete);
     dom.sortProjects.addEventListener('change', renderDashboard);
+
+    // Lobby meta modal events
+    if (dom.btnMetaSave) dom.btnMetaSave.addEventListener('click', saveLobbyMetaForActive);
+    if (dom.btnMetaCancel) dom.btnMetaCancel.addEventListener('click', closeLobbyMetaModal);
+    if (dom.btnMetaClose) dom.btnMetaClose.addEventListener('click', closeLobbyMetaModal);
+    if (dom.btnMetaReset) dom.btnMetaReset.addEventListener('click', resetLobbyMetaForActive);
+    if (dom.metaInputIcon) dom.metaInputIcon.addEventListener('input', renderMetaIconPreview);
+    if (dom.metaModalOverlay) {
+      dom.metaModalOverlay.addEventListener('click', (event) => {
+        if (event.target === dom.metaModalOverlay) {
+          closeLobbyMetaModal();
+        }
+      });
+    }
 
     document.addEventListener('keydown', handleDocumentKeydown);
     window.addEventListener('beforeunload', () => activeFetchController?.abort());

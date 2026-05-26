@@ -141,7 +141,7 @@ export async function onRequest(context) {
       );
     }
 
-    const { pin, accountId, apiToken, ghToken } = body;
+    const { pin, accountId, apiToken, ghToken, favorites } = body;
 
     if (!validatePin(pin)) {
       return jsonResponse(
@@ -160,7 +160,20 @@ export async function onRequest(context) {
     const kvKey = kvKeyForPin(pin);
     const existing = await VAULT.get(kvKey, 'json');
 
-    const credentials = { accountId, apiToken, ghToken: ghToken || '' };
+    const normalizedFavorites = Array.isArray(favorites)
+      ? [...new Set(
+          favorites
+            .map((name) => (typeof name === 'string' ? name.trim() : ''))
+            .filter(Boolean)
+        )]
+      : [];
+
+    const credentials = {
+      accountId,
+      apiToken,
+      ghToken: ghToken || '',
+      favorites: normalizedFavorites,
+    };
     const encrypted = await encryptCredentials(pin, credentials);
 
     const now = new Date().toISOString();

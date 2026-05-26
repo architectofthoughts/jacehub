@@ -20,6 +20,7 @@
     cache:       'jacehub_cache',
     favorites:   'jacehub_favorites',
     vaultLinked: 'jacehub_vault_linked',
+    vaultPin:    'jacehub_vault_pin',
     lobbyCache:  'jacehub_lobby_cache',
     lobbyMeta:   'jacehub_lobby_meta',
   };
@@ -199,6 +200,34 @@
 
   function saveFavorites() {
     localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
+    if (isVaultLinked()) {
+      syncFavoritesToVault();
+    }
+  }
+
+  async function syncFavoritesToVault() {
+    const pin = localStorage.getItem(STORAGE_KEYS.vaultPin) || '';
+    if (!/^\d{6}$/.test(pin)) {
+      // PIN 분실 — 다음 unlock까지 서버 동기화 보류.
+      return;
+    }
+    const { accountId, apiToken, ghToken } = getConfig();
+    if (!accountId || !apiToken) return;
+    try {
+      await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pin,
+          accountId,
+          apiToken,
+          ghToken,
+          favorites: [...favoriteProjects],
+        }),
+      });
+    } catch {
+      // 네트워크 오류는 localStorage 미러로 우회 — 다음 토글에서 재시도됨.
+    }
   }
 
   // ── Lobby meta + snapshot ──
@@ -250,7 +279,24 @@
       localStorage.setItem(STORAGE_KEYS.vaultLinked, '1');
     } else {
       localStorage.removeItem(STORAGE_KEYS.vaultLinked);
+      localStorage.removeItem(STORAGE_KEYS.vaultPin);
     }
+  }
+
+  function setVaultPin(pin) {
+    if (typeof pin === 'string' && /^\d{6}$/.test(pin)) {
+      localStorage.setItem(STORAGE_KEYS.vaultPin, pin);
+    }
+  }
+
+  function applyServerFavorites(rawFavorites) {
+    if (!Array.isArray(rawFavorites)) return;
+    favoriteProjects = new Set(
+      rawFavorites
+        .map((name) => String(name || '').trim())
+        .filter(Boolean)
+    );
+    localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
   }
 
   function isFavoriteProject(projectName) {
@@ -554,6 +600,10 @@
 
       saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken);
       setVaultLinked(true);
+      setVaultPin(pin);
+      if (Array.isArray(credentials.favorites)) {
+        applyServerFavorites(credentials.favorites);
+      }
       updateVaultUI();
       clearVaultPinInputs();
 
@@ -597,7 +647,13 @@
       const response = await fetch('/api/vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, accountId, apiToken, ghToken }),
+        body: JSON.stringify({
+          pin,
+          accountId,
+          apiToken,
+          ghToken,
+          favorites: [...favoriteProjects],
+        }),
       });
       const data = await response.json();
 
@@ -608,6 +664,7 @@
       }
 
       setVaultLinked(true);
+      setVaultPin(pin);
       updateVaultUI();
       clearVaultPinInputs();
 
@@ -648,6 +705,7 @@
           accountId,
           apiToken,
           ghToken,
+          favorites: [...favoriteProjects],
         }),
       });
       const data = await response.json();
@@ -659,6 +717,7 @@
       }
 
       setVaultLinked(true);
+      setVaultPin(trimmedPin);
       updateVaultUI();
       showToast('보관소가 업데이트되었습니다.', 'success');
     } catch (err) {

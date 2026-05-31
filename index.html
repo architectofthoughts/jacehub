@@ -33,6 +33,15 @@
         <h1 class="header__title">JaceHub</h1>
       </div>
       <div class="header__actions">
+        <a class="btn btn--ghost btn--toolbar" href="/lobby.html" title="공개 로비 페이지 열기">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span>Lobby</span>
+        </a>
         <button class="btn btn--ghost" id="btn-refresh" type="button" title="새로고침" aria-label="프로젝트 새로고침">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="23 4 23 10 17 10"/>
@@ -227,6 +236,11 @@
           <input class="form-input" type="password" id="input-gh-token" placeholder="Private repo의 설명을 가져오려면 입력">
           <p class="form-hint">GitHub → Settings → Developer settings → Personal access tokens → repo 권한</p>
         </div>
+        <div class="form-group">
+          <label class="form-label" for="input-vercel-token">Vercel API Token <span style="font-weight:400;color:#94A3B8">(선택)</span></label>
+          <input class="form-input" type="password" id="input-vercel-token" placeholder="Vercel에 배포한 프로젝트도 함께 보려면 입력">
+          <p class="form-hint">Vercel → Account Settings → Tokens → Create. Hobby 계정이면 Full Account 스코프로 OK.</p>
+        </div>
       </div>
 
       <!-- ═══ Vault Section ═══ -->
@@ -296,6 +310,49 @@
       <div class="modal__footer">
         <button class="btn btn--ghost" id="btn-cancel" type="button">취소</button>
         <button class="btn btn--primary" id="btn-save" type="button">저장 및 연결</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ Lobby Meta Modal ═══════════════ -->
+  <div class="modal-overlay" id="meta-modal-overlay" aria-hidden="true">
+    <div class="modal modal--meta" id="meta-modal" role="dialog" aria-modal="true" aria-labelledby="meta-modal-title">
+      <div class="modal__header">
+        <h2 id="meta-modal-title">로비 정보 편집 — <span id="meta-modal-project" class="meta-modal__project"></span></h2>
+        <button class="modal__close" id="btn-meta-close" type="button" aria-label="모달 닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p class="meta-modal__hint">이 정보는 로비 페이지에서 사용돼요. 비워두면 기본값(GitHub description, 이름 첫 글자)이 사용됩니다.</p>
+        <div class="form-group">
+          <label class="form-label" for="meta-input-desc">한 줄 설명</label>
+          <input class="form-input" type="text" id="meta-input-desc" placeholder="예: 다이어트 디데이 타이머" maxlength="80">
+          <p class="form-hint">로비 카드 아래에 표시되는 설명. 비우면 GitHub repo description 사용.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="meta-select-category">카테고리</label>
+          <select class="form-input" id="meta-select-category"></select>
+          <p class="form-hint">로비에서 카테고리 필터로 묶입니다.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="meta-input-icon">아이콘 (이모지)</label>
+          <div class="meta-icon-row">
+            <input class="form-input meta-icon-input" type="text" id="meta-input-icon" placeholder="🎮" maxlength="4">
+            <div class="meta-icon-preview" id="meta-icon-preview" aria-hidden="true">?</div>
+          </div>
+          <p class="form-hint">한 글자 이모지 추천. 비우면 이름의 첫 글자 + 자동 그라데이션 배경.</p>
+        </div>
+      </div>
+      <div class="modal__footer modal__footer--meta">
+        <button class="btn btn--ghost btn--danger-text" id="btn-meta-reset" type="button">초기화</button>
+        <div class="modal__footer-right">
+          <button class="btn btn--ghost" id="btn-meta-cancel" type="button">취소</button>
+          <button class="btn btn--primary" id="btn-meta-save" type="button">저장</button>
+        </div>
       </div>
     </div>
   </div>

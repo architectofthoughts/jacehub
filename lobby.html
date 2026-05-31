@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lobby — Jace's Apps</title>
+  <meta name="description" content="제이스가 만든 웹앱들의 공개 로비. 아이콘 클릭으로 바로 진입.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="lobby.css">
+</head>
+<body class="lobby-body">
+
+  <!-- ═══════════════ Header ═══════════════ -->
+  <header class="header lobby-header">
+    <div class="header__inner">
+      <div class="header__brand">
+        <div class="header__logo">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="url(#lobby-logo-grad)"/>
+            <path d="M8 16L14 10L20 16L14 22Z" fill="white" opacity="0.9"/>
+            <path d="M14 16L20 10L26 16L20 22Z" fill="white" opacity="0.6"/>
+            <defs>
+              <linearGradient id="lobby-logo-grad" x1="0" y1="0" x2="32" y2="32">
+                <stop stop-color="#0EA5E9"/>
+                <stop offset="1" stop-color="#0284C7"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h1 class="header__title">Lobby</h1>
+        <span class="lobby-header__sub">제이스가 만든 앱들</span>
+      </div>
+      <div class="header__actions">
+        <a class="btn btn--ghost btn--toolbar" href="/" title="관리 페이지로 이동">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>관리</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════ Main ═══════════════ -->
+  <main class="lobby-main" id="lobby-main">
+
+    <!-- Hero -->
+    <section class="lobby-hero" id="lobby-hero" style="display:none;">
+      <h2 class="lobby-hero__title">Apps</h2>
+      <p class="lobby-hero__subtitle" id="lobby-hero-subtitle">제이스가 만든 작은 앱들이에요. 아이콘을 눌러 들어가보세요.</p>
+    </section>
+
+    <!-- Category Chips -->
+    <section class="lobby-categories" id="lobby-categories" style="display:none;" aria-label="카테고리 필터">
+      <div class="lobby-chips" id="lobby-chips" role="group"></div>
+    </section>
+
+    <!-- App Grid -->
+    <section class="lobby-grid-wrap" id="lobby-grid-wrap" style="display:none;">
+      <div class="lobby-grid" id="lobby-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- Empty State -->
+    <section class="lobby-empty" id="lobby-empty">
+      <div class="lobby-empty__icon">
+        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      </div>
+      <h2 class="lobby-empty__title">아직 즐겨찾기한 앱이 없어요</h2>
+      <p class="lobby-empty__msg">
+        <a href="/">관리 페이지</a>에서 ⭐ 버튼을 눌러 앱을 즐겨찾기 하면<br>
+        여기 로비에 자동으로 등장해요.
+      </p>
+      <a class="btn btn--primary btn--lg" href="/">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        관리 페이지로 가기
+      </a>
+    </section>
+
+    <!-- No-match State -->
+    <section class="lobby-nomatch" id="lobby-nomatch" style="display:none;" aria-live="polite">
+      <p>이 카테고리에 해당하는 앱이 없어요.</p>
+    </section>
+  </main>
+
+  <footer class="lobby-footer">
+    <span id="lobby-footer-count">0개의 앱</span>
+    <span class="lobby-footer__dot">·</span>
+    <span id="lobby-footer-updated">즐겨찾기 캐시는 관리 페이지에서 갱신됩니다.</span>
+  </footer>
+
+  <script src="lobby.js"></script>
+</body>
+</html>

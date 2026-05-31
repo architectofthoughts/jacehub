@@ -4,7 +4,7 @@
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-CF-Account-Id, X-CF-Api-Token, X-GH-Token',
+  'Access-Control-Allow-Headers': 'Content-Type, X-CF-Account-Id, X-CF-Api-Token, X-GH-Token, X-Vercel-Api-Token',
   'Access-Control-Max-Age': '86400',
 };
 
@@ -96,6 +96,63 @@ function normalizeWorkerScript(script, workersSubdomain) {
   };
 }
 
+function epochMsToIso(value) {
+  if (!value && value !== 0) return '';
+  const ms = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  try {
+    return new Date(ms).toISOString();
+  } catch {
+    return '';
+  }
+}
+
+function vercelReadyStateToStageStatus(readyState) {
+  switch (String(readyState || '').toUpperCase()) {
+    case 'READY':
+      return 'success';
+    case 'ERROR':
+    case 'CANCELED':
+      return 'failure';
+    case 'BUILDING':
+    case 'INITIALIZING':
+    case 'QUEUED':
+      return 'active';
+    default:
+      return 'success';
+  }
+}
+
+function normalizeVercelProject(project) {
+  const production = project.targets?.production || project.latestDeployments?.[0] || {};
+  const aliasList = Array.isArray(production.alias) ? production.alias : [];
+  const productionHost = aliasList[0] || production.url || '';
+  const customDomains = aliasList.filter((host) => host && !host.endsWith('.vercel.app'));
+
+  const link = project.link || {};
+  const sourceConfig =
+    link.type === 'github' && link.org && link.repo
+      ? { owner: link.org, repo_name: link.repo }
+      : {};
+
+  return {
+    name: project.name,
+    subdomain: productionHost,
+    domains: customDomains,
+    latest_deployment: {
+      created_on: epochMsToIso(production.createdAt || production.created || project.updatedAt),
+      latest_stage: {
+        status: vercelReadyStateToStageStatus(production.readyState),
+        name: 'deploy',
+      },
+    },
+    source: { type: link.type === 'github' ? 'github' : '', config: sourceConfig },
+    framework: project.framework || '',
+    created_on: epochMsToIso(project.createdAt),
+    _type: 'vercel',
+  };
+}
+
 export async function onRequest(context) {
   if (context.request.method === 'OPTIONS') {
     return new Response(null, { headers: CORS_HEADERS });
@@ -111,6 +168,7 @@ export async function onRequest(context) {
   const accountId = context.request.headers.get('X-CF-Account-Id');
   const apiToken = context.request.headers.get('X-CF-Api-Token');
   const ghToken = context.request.headers.get('X-GH-Token') || '';
+  const vercelToken = context.request.headers.get('X-Vercel-Api-Token') || '';
 
   if (!accountId || !apiToken) {
     return jsonResponse(
@@ -124,9 +182,21 @@ export async function onRequest(context) {
     'Content-Type': 'application/json',
   };
 
+  const vercelHeaders = vercelToken
+    ? { Authorization: `Bearer ${vercelToken}`, 'Content-Type': 'application/json' }
+    : null;
+
   try {
-    // Fetch Pages projects, Workers scripts, and Workers subdomain in parallel
-    const [pagesResult, workersResult, subdomainResult] = await Promise.allSettled([
+    // Fetch Pages projects, Workers scripts, Workers subdomain, and Vercel projects in parallel
+    const vercelPromise = vercelHeaders
+      ? fetchJson(
+          'https://api.vercel.com/v9/projects?limit=100',
+          { headers: vercelHeaders },
+          'Vercel 프로젝트 목록을 불러오지 못했습니다'
+        )
+      : Promise.resolve({ payload: { projects: [] } });
+
+    const [pagesResult, workersResult, subdomainResult, vercelResult] = await Promise.allSettled([
       fetchJson(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects`,
         { headers: cfHeaders },
@@ -142,6 +212,7 @@ export async function onRequest(context) {
         { headers: cfHeaders },
         'Workers 서브도메인을 불러오지 못했습니다'
       ),
+      vercelPromise,
     ]);
 
     const pagesError = pagesResult.status === 'rejected'
@@ -164,6 +235,14 @@ export async function onRequest(context) {
       ? (subdomainResult.value.payload?.result?.subdomain || '')
       : '';
 
+    const vercelError = vercelToken && vercelResult.status === 'rejected'
+      ? (vercelResult.reason?.message || 'Vercel 조회 실패')
+      : '';
+
+    const rawVercelList = vercelResult.status === 'fulfilled'
+      ? (Array.isArray(vercelResult.value.payload?.projects) ? vercelResult.value.payload.projects : [])
+      : [];
+
     if (pagesError && workersError) {
       throw new Error(pagesError);
     }
@@ -173,6 +252,8 @@ export async function onRequest(context) {
     const workersList = rawWorkersList
       .filter((script) => !pagesNames.has(script.id))
       .map((script) => normalizeWorkerScript(script, workersSubdomain));
+
+    const vercelList = rawVercelList.map((project) => normalizeVercelProject(project));
 
     // Enrich Pages projects with detail data
     const enrichedPages = await mapWithConcurrency(pagesList, PROJECT_DETAIL_CONCURRENCY, async (project) => {
@@ -195,8 +276,8 @@ export async function onRequest(context) {
       return detail;
     });
 
-    // Merge Pages + Workers, then enrich all with GitHub descriptions
-    const allProjects = [...enrichedPages, ...workersList];
+    // Merge Pages + Workers + Vercel, then enrich all with GitHub descriptions
+    const allProjects = [...enrichedPages, ...workersList, ...vercelList];
     const repoDescriptionCache = new Map();
     let ghUsernamePromise = null;
 
@@ -248,12 +329,16 @@ export async function onRequest(context) {
     const meta = {
       pagesCount: enrichedPages.length,
       workersCount: workersList.length,
+      vercelCount: vercelList.length,
     };
     if (pagesError) {
       meta.pagesError = pagesError;
     }
     if (workersError) {
       meta.workersError = workersError;
+    }
+    if (vercelError) {
+      meta.vercelError = vercelError;
     }
 
     return jsonResponse({ success: true, result: enriched, _meta: meta });

@@ -17,10 +17,25 @@
     accountId:   'jacehub_account_id',
     apiToken:    'jacehub_api_token',
     ghToken:     'jacehub_gh_token',
+    vercelToken: 'jacehub_vercel_token',
     cache:       'jacehub_cache',
     favorites:   'jacehub_favorites',
     vaultLinked: 'jacehub_vault_linked',
+    vaultPin:    'jacehub_vault_pin',
+    lobbyCache:  'jacehub_lobby_cache',
+    lobbyMeta:   'jacehub_lobby_meta',
   };
+
+  // Categories surfaced in the lobby meta editor.
+  const LOBBY_CATEGORIES = [
+    { value: 'game',         label: '게임' },
+    { value: 'tool',         label: '도구' },
+    { value: 'experiment',   label: '실험' },
+    { value: 'util',         label: '유틸' },
+    { value: 'productivity', label: '생산성' },
+    { value: 'learning',     label: '학습' },
+    { value: 'other',        label: '기타' },
+  ];
 
   // ── DOM References ──
   const $ = (sel) => document.querySelector(sel);
@@ -61,6 +76,7 @@
     inputAccountId:   $('#input-account-id'),
     inputApiToken:    $('#input-api-token'),
     inputGhToken:     $('#input-gh-token'),
+    inputVercelToken: $('#input-vercel-token'),
     // Vault
     vaultSection:     $('#vault-section'),
     vaultStatus:      $('#vault-status'),
@@ -84,9 +100,24 @@
     btnSave:          $('#btn-save'),
     btnCancel:        $('#btn-cancel'),
     btnModalClose:    $('#btn-modal-close'),
+    // Lobby Meta Modal
+    metaModalOverlay: $('#meta-modal-overlay'),
+    metaModal:        $('#meta-modal'),
+    metaModalProject: $('#meta-modal-project'),
+    metaInputDesc:    $('#meta-input-desc'),
+    metaInputIcon:    $('#meta-input-icon'),
+    metaSelectCat:    $('#meta-select-category'),
+    btnMetaSave:      $('#btn-meta-save'),
+    btnMetaCancel:    $('#btn-meta-cancel'),
+    btnMetaClose:     $('#btn-meta-close'),
+    btnMetaReset:     $('#btn-meta-reset'),
+    metaIconPreview:  $('#meta-icon-preview'),
     // Toast
     toastContainer:   $('#toast-container'),
   };
+
+  // Active project name currently being edited in the lobby meta modal.
+  let activeMetaProjectName = '';
 
   // ── State ──
   let activeFetchController = null;
@@ -99,16 +130,18 @@
   // ── Storage ──
   function getConfig() {
     return {
-      accountId: localStorage.getItem(STORAGE_KEYS.accountId) || '',
-      apiToken:  localStorage.getItem(STORAGE_KEYS.apiToken) || '',
-      ghToken:   localStorage.getItem(STORAGE_KEYS.ghToken) || '',
+      accountId:   localStorage.getItem(STORAGE_KEYS.accountId)   || '',
+      apiToken:    localStorage.getItem(STORAGE_KEYS.apiToken)    || '',
+      ghToken:     localStorage.getItem(STORAGE_KEYS.ghToken)     || '',
+      vercelToken: localStorage.getItem(STORAGE_KEYS.vercelToken) || '',
     };
   }
 
-  function saveConfig(accountId, apiToken, ghToken) {
-    localStorage.setItem(STORAGE_KEYS.accountId, accountId.trim());
-    localStorage.setItem(STORAGE_KEYS.apiToken, apiToken.trim());
-    localStorage.setItem(STORAGE_KEYS.ghToken, (ghToken || '').trim());
+  function saveConfig(accountId, apiToken, ghToken, vercelToken) {
+    localStorage.setItem(STORAGE_KEYS.accountId,   accountId.trim());
+    localStorage.setItem(STORAGE_KEYS.apiToken,    apiToken.trim());
+    localStorage.setItem(STORAGE_KEYS.ghToken,     (ghToken || '').trim());
+    localStorage.setItem(STORAGE_KEYS.vercelToken, (vercelToken || '').trim());
   }
 
   function hasConfig() {
@@ -123,6 +156,7 @@
       timestamp: Date.now(),
       projects: projectList,
     }));
+    saveLobbySnapshot();
   }
 
   function loadCache() {
@@ -170,6 +204,75 @@
 
   function saveFavorites() {
     localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
+    if (isVaultLinked()) {
+      syncFavoritesToVault();
+    }
+  }
+
+  async function syncFavoritesToVault() {
+    const pin = localStorage.getItem(STORAGE_KEYS.vaultPin) || '';
+    if (!/^\d{6}$/.test(pin)) {
+      // PIN 분실 — 다음 unlock까지 서버 동기화 보류.
+      return;
+    }
+    const { accountId, apiToken, ghToken, vercelToken } = getConfig();
+    if (!accountId || !apiToken) return;
+    try {
+      await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pin,
+          accountId,
+          apiToken,
+          ghToken,
+          vercelToken,
+          favorites: [...favoriteProjects],
+        }),
+      });
+    } catch {
+      // 네트워크 오류는 localStorage 미러로 우회 — 다음 토글에서 재시도됨.
+    }
+  }
+
+  // ── Lobby meta + snapshot ──
+  function loadLobbyMeta() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.lobbyMeta);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveLobbyMeta(meta) {
+    localStorage.setItem(STORAGE_KEYS.lobbyMeta, JSON.stringify(meta || {}));
+  }
+
+  function projectSnapshotForLobby(project) {
+    return {
+      name: project.name,
+      type: project._type || 'pages',
+      description: project._description || '',
+      subdomain: project.subdomain || '',
+      domains: project.domains || [],
+      framework: project.framework || '',
+      created_on: project.created_on || '',
+      latest_deployment_on: project.latest_deployment?.created_on || '',
+    };
+  }
+
+  function saveLobbySnapshot() {
+    const apps = currentProjects
+      .filter((project) => isFavoriteProject(project.name))
+      .map(projectSnapshotForLobby);
+
+    localStorage.setItem(STORAGE_KEYS.lobbyCache, JSON.stringify({
+      savedAt: Date.now(),
+      apps,
+    }));
   }
 
   function isVaultLinked() {
@@ -181,7 +284,24 @@
       localStorage.setItem(STORAGE_KEYS.vaultLinked, '1');
     } else {
       localStorage.removeItem(STORAGE_KEYS.vaultLinked);
+      localStorage.removeItem(STORAGE_KEYS.vaultPin);
     }
+  }
+
+  function setVaultPin(pin) {
+    if (typeof pin === 'string' && /^\d{6}$/.test(pin)) {
+      localStorage.setItem(STORAGE_KEYS.vaultPin, pin);
+    }
+  }
+
+  function applyServerFavorites(rawFavorites) {
+    if (!Array.isArray(rawFavorites)) return;
+    favoriteProjects = new Set(
+      rawFavorites
+        .map((name) => String(name || '').trim())
+        .filter(Boolean)
+    );
+    localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
   }
 
   function isFavoriteProject(projectName) {
@@ -266,11 +386,12 @@
   }
 
   function openModal() {
-    const { accountId, apiToken, ghToken } = getConfig();
+    const { accountId, apiToken, ghToken, vercelToken } = getConfig();
     lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dom.inputAccountId.value = accountId;
     dom.inputApiToken.value = apiToken;
     dom.inputGhToken.value = ghToken;
+    dom.inputVercelToken.value = vercelToken;
     updateVaultUI();
     dom.modalOverlay.classList.add('is-open');
     dom.modalOverlay.setAttribute('aria-hidden', 'false');
@@ -289,6 +410,108 @@
     }
   }
 
+  // ── Lobby Meta Modal ──
+  function isMetaModalOpen() {
+    return dom.metaModalOverlay && dom.metaModalOverlay.classList.contains('is-open');
+  }
+
+  function populateMetaCategorySelect() {
+    if (!dom.metaSelectCat || dom.metaSelectCat.dataset.populated === '1') return;
+    dom.metaSelectCat.innerHTML = LOBBY_CATEGORIES
+      .map((c) => `<option value="${c.value}">${c.label}</option>`)
+      .join('');
+    dom.metaSelectCat.dataset.populated = '1';
+  }
+
+  function renderMetaIconPreview() {
+    if (!dom.metaIconPreview) return;
+    const iconValue = (dom.metaInputIcon?.value || '').trim();
+    if (iconValue) {
+      dom.metaIconPreview.textContent = iconValue.slice(0, 2);
+      dom.metaIconPreview.classList.add('is-emoji');
+    } else {
+      const name = activeMetaProjectName || '?';
+      const initial = ([...name.trim()][0] || '?').toUpperCase();
+      dom.metaIconPreview.textContent = initial;
+      dom.metaIconPreview.classList.remove('is-emoji');
+    }
+  }
+
+  function openLobbyMetaModal(projectName) {
+    if (!dom.metaModalOverlay) return;
+    const name = String(projectName || '').trim();
+    if (!name) return;
+
+    populateMetaCategorySelect();
+    activeMetaProjectName = name;
+
+    const meta = loadLobbyMeta();
+    const entry = meta[name] || {};
+    const project = currentProjects.find((p) => p.name === name);
+    const ghDescription = project?._description || '';
+
+    if (dom.metaModalProject) dom.metaModalProject.textContent = name;
+    if (dom.metaInputDesc) {
+      dom.metaInputDesc.value = entry.description || '';
+      dom.metaInputDesc.placeholder = ghDescription || '예: 다이어트 디데이 타이머';
+    }
+    if (dom.metaInputIcon) dom.metaInputIcon.value = entry.icon || '';
+    if (dom.metaSelectCat) dom.metaSelectCat.value = entry.category || 'other';
+    renderMetaIconPreview();
+
+    lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dom.metaModalOverlay.classList.add('is-open');
+    dom.metaModalOverlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => dom.metaInputDesc?.focus(), 200);
+  }
+
+  function closeLobbyMetaModal() {
+    if (!dom.metaModalOverlay) return;
+    dom.metaModalOverlay.classList.remove('is-open');
+    dom.metaModalOverlay.setAttribute('aria-hidden', 'true');
+    document.body.style.removeProperty('overflow');
+    activeMetaProjectName = '';
+    if (lastFocusedElement) {
+      lastFocusedElement.focus();
+      lastFocusedElement = null;
+    }
+  }
+
+  function saveLobbyMetaForActive() {
+    if (!activeMetaProjectName) {
+      closeLobbyMetaModal();
+      return;
+    }
+    const meta = loadLobbyMeta();
+    const description = (dom.metaInputDesc?.value || '').trim();
+    const icon = (dom.metaInputIcon?.value || '').trim();
+    const category = dom.metaSelectCat?.value || 'other';
+
+    if (!description && !icon && category === 'other') {
+      delete meta[activeMetaProjectName];
+    } else {
+      meta[activeMetaProjectName] = { description, icon, category };
+    }
+    saveLobbyMeta(meta);
+    showToast(`${activeMetaProjectName}의 로비 정보를 저장했습니다.`, 'success');
+    closeLobbyMetaModal();
+  }
+
+  function resetLobbyMetaForActive() {
+    if (!activeMetaProjectName) return;
+    const meta = loadLobbyMeta();
+    if (meta[activeMetaProjectName]) {
+      delete meta[activeMetaProjectName];
+      saveLobbyMeta(meta);
+    }
+    if (dom.metaInputDesc) dom.metaInputDesc.value = '';
+    if (dom.metaInputIcon) dom.metaInputIcon.value = '';
+    if (dom.metaSelectCat) dom.metaSelectCat.value = 'other';
+    renderMetaIconPreview();
+    showToast(`${activeMetaProjectName}의 로비 정보를 초기화했습니다.`, 'info');
+  }
+
   // ── Toast ──
   function showToast(message, type = 'info') {
     const toast = document.createElement('div');
@@ -305,7 +528,7 @@
 
   // ── API ──
   async function fetchProjects(signal) {
-    const { accountId, apiToken, ghToken } = getConfig();
+    const { accountId, apiToken, ghToken, vercelToken } = getConfig();
     const headers = {
       'X-CF-Account-Id': accountId,
       'X-CF-Api-Token': apiToken,
@@ -313,6 +536,10 @@
 
     if (ghToken) {
       headers['X-GH-Token'] = ghToken;
+    }
+
+    if (vercelToken) {
+      headers['X-Vercel-Api-Token'] = vercelToken;
     }
 
     const response = await fetch('/api/projects', { headers, signal });
@@ -380,9 +607,14 @@
       dom.inputAccountId.value = credentials.accountId || '';
       dom.inputApiToken.value = credentials.apiToken || '';
       dom.inputGhToken.value = credentials.ghToken || '';
+      dom.inputVercelToken.value = credentials.vercelToken || '';
 
-      saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken);
+      saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken, credentials.vercelToken);
       setVaultLinked(true);
+      setVaultPin(pin);
+      if (Array.isArray(credentials.favorites)) {
+        applyServerFavorites(credentials.favorites);
+      }
       updateVaultUI();
       clearVaultPinInputs();
 
@@ -399,6 +631,7 @@
     const accountId = dom.inputAccountId.value.trim();
     const apiToken = dom.inputApiToken.value.trim();
     const ghToken = dom.inputGhToken.value.trim();
+    const vercelToken = dom.inputVercelToken.value.trim();
     const pin = dom.inputVaultPinSave.value.trim();
     const pinConfirm = dom.inputVaultPinConfirm.value.trim();
 
@@ -426,7 +659,14 @@
       const response = await fetch('/api/vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, accountId, apiToken, ghToken }),
+        body: JSON.stringify({
+          pin,
+          accountId,
+          apiToken,
+          ghToken,
+          vercelToken,
+          favorites: [...favoriteProjects],
+        }),
       });
       const data = await response.json();
 
@@ -437,6 +677,7 @@
       }
 
       setVaultLinked(true);
+      setVaultPin(pin);
       updateVaultUI();
       clearVaultPinInputs();
 
@@ -460,6 +701,7 @@
     const accountId = dom.inputAccountId.value.trim();
     const apiToken = dom.inputApiToken.value.trim();
     const ghToken = dom.inputGhToken.value.trim();
+    const vercelToken = dom.inputVercelToken.value.trim();
 
     if (!accountId || !apiToken) {
       showToast('Account ID와 API Token을 먼저 입력해주세요.', 'error');
@@ -477,6 +719,8 @@
           accountId,
           apiToken,
           ghToken,
+          vercelToken,
+          favorites: [...favoriteProjects],
         }),
       });
       const data = await response.json();
@@ -488,6 +732,7 @@
       }
 
       setVaultLinked(true);
+      setVaultPin(trimmedPin);
       updateVaultUI();
       showToast('보관소가 업데이트되었습니다.', 'success');
     } catch (err) {
@@ -1099,9 +1344,11 @@
       const displayUrl = primaryUrl ? primaryUrl.replace(/^https?:\/\//, '') : '연결된 주소 없음';
       const isFavorite = isFavoriteProject(project.name);
       const isWorker = project._type === 'worker';
+      const isVercel = project._type === 'vercel';
       const meta = [
         `<span class="card__tag card__tag--${radar.severity}">${escapeHtml(radar.label)}</span>`,
         isWorker ? '<span class="card__tag card__tag--worker">Worker</span>' : '',
+        isVercel ? '<span class="card__tag card__tag--vercel">Vercel</span>' : '',
         framework ? `<span class="card__tag">${escapeHtml(framework)}</span>` : '',
         domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '<span class="card__tag card__tag--muted">도메인 미연결</span>',
       ].filter(Boolean).join('');
@@ -1124,10 +1371,26 @@
               </button>
               <span class="card__name">${escapeHtml(project.name)}</span>
             </div>
-            <span class="card__status card__status--${status.class}">
-              <span class="card__status-dot"></span>
-              ${status.label}
-            </span>
+            <div class="card__header-side">
+              ${isFavorite ? `
+                <button
+                  class="card__meta-edit"
+                  type="button"
+                  data-project-meta="${escapeAttribute(project.name)}"
+                  aria-label="${escapeAttribute(project.name)} 로비 정보 편집"
+                  title="로비에 보일 정보 편집"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+              ` : ''}
+              <span class="card__status card__status--${status.class}">
+                <span class="card__status-dot"></span>
+                ${status.label}
+              </span>
+            </div>
           </div>
           ${description ? `<p class="card__desc">${escapeHtml(description)}</p>` : ''}
           ${meta ? `<div class="card__meta">${meta}</div>` : ''}
@@ -1231,6 +1494,7 @@
       const parts = [];
       if (meta.pagesCount) parts.push(`Pages ${meta.pagesCount}개`);
       if (meta.workersCount) parts.push(`Workers ${meta.workersCount}개`);
+      if (meta.vercelCount) parts.push(`Vercel ${meta.vercelCount}개`);
       const summary = parts.length > 0 ? parts.join(' + ') : `${projectList.length}개 프로젝트`;
       showToast(`${summary}를 불러왔습니다.`, 'success');
 
@@ -1240,6 +1504,10 @@
 
       if (meta.workersError) {
         showToast('Workers 조회 실패: API 토큰에 Workers Scripts:Read 권한을 추가하세요.', 'error');
+      }
+
+      if (meta.vercelError) {
+        showToast('Vercel 조회 실패: 토큰을 확인해주세요.', 'error');
       }
     } catch (err) {
       if (err.name === 'AbortError' || requestId !== latestLoadRequestId) return;
@@ -1268,13 +1536,14 @@
     const accountId = dom.inputAccountId.value.trim();
     const apiToken = dom.inputApiToken.value.trim();
     const ghToken = dom.inputGhToken.value.trim();
+    const vercelToken = dom.inputVercelToken.value.trim();
 
     if (!accountId || !apiToken) {
       showToast('Account ID와 API Token을 모두 입력해주세요.', 'error');
       return;
     }
 
-    saveConfig(accountId, apiToken, ghToken);
+    saveConfig(accountId, apiToken, ghToken, vercelToken);
     closeModal();
     showToast('설정이 저장되었습니다.', 'success');
     loadProjects(true);
@@ -1309,8 +1578,20 @@
   }
 
   function handleDocumentKeydown(event) {
-    if (event.key === 'Escape' && isModalOpen()) {
-      closeModal();
+    if (event.key === 'Escape') {
+      if (isMetaModalOpen()) {
+        closeLobbyMetaModal();
+        return;
+      }
+      if (isModalOpen()) {
+        closeModal();
+        return;
+      }
+    }
+
+    if (isMetaModalOpen() && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      saveLobbyMetaForActive();
       return;
     }
 
@@ -1339,14 +1620,24 @@
   }
 
   function handleGridClick(event) {
+    const metaButton = event.target.closest('[data-project-meta]');
+    if (metaButton) {
+      const projectName = metaButton.getAttribute('data-project-meta') || '';
+      openLobbyMetaModal(projectName);
+      return;
+    }
+
     const favoriteButton = event.target.closest('[data-project-favorite]');
     if (!favoriteButton) return;
 
     const projectName = favoriteButton.getAttribute('data-project-favorite') || '';
     const isFavorite = toggleFavoriteProject(projectName);
+    saveLobbySnapshot();
     renderDashboard();
     showToast(
-      isFavorite ? `${projectName}을 즐겨찾기에 추가했습니다.` : `${projectName}을 즐겨찾기에서 제거했습니다.`,
+      isFavorite
+        ? `${projectName}을 즐겨찾기에 추가했습니다. 로비에 자동으로 등장해요.`
+        : `${projectName}을 즐겨찾기에서 제거했습니다.`,
       'success'
     );
   }
@@ -1392,6 +1683,20 @@
     dom.btnVaultUpdate.addEventListener('click', handleVaultUpdate);
     dom.btnVaultDelete.addEventListener('click', handleVaultDelete);
     dom.sortProjects.addEventListener('change', renderDashboard);
+
+    // Lobby meta modal events
+    if (dom.btnMetaSave) dom.btnMetaSave.addEventListener('click', saveLobbyMetaForActive);
+    if (dom.btnMetaCancel) dom.btnMetaCancel.addEventListener('click', closeLobbyMetaModal);
+    if (dom.btnMetaClose) dom.btnMetaClose.addEventListener('click', closeLobbyMetaModal);
+    if (dom.btnMetaReset) dom.btnMetaReset.addEventListener('click', resetLobbyMetaForActive);
+    if (dom.metaInputIcon) dom.metaInputIcon.addEventListener('input', renderMetaIconPreview);
+    if (dom.metaModalOverlay) {
+      dom.metaModalOverlay.addEventListener('click', (event) => {
+        if (event.target === dom.metaModalOverlay) {
+          closeLobbyMetaModal();
+        }
+      });
+    }
 
     document.addEventListener('keydown', handleDocumentKeydown);
     window.addEventListener('beforeunload', () => activeFetchController?.abort());

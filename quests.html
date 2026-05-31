@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jacehub · 퀘스트</title>
+  <link rel="stylesheet" href="quests.css" />
+</head>
+<body>
+  <header class="q-header">
+    <a class="q-back" href="index.html">← 허브</a>
+    <h1>오늘의 퀘스트</h1>
+    <div class="q-summary" id="summary">–</div>
+  </header>
+
+  <main class="q-main">
+    <section id="needPin" class="q-card hidden">
+      <p>PIN이 필요해요. 허브에서 보관소를 먼저 연결하세요.</p>
+    </section>
+
+    <section class="q-card">
+      <h2>새 퀘스트</h2>
+      <form id="addForm" class="q-form">
+        <input id="f_app" list="appList" placeholder="앱 이름 (예: rituall)" required />
+        <datalist id="appList"></datalist>
+        <input id="f_title" placeholder="퀘스트 제목" required />
+        <input id="f_event" placeholder="이벤트 타입 (선택, 비우면 앱 단위)" />
+        <input id="f_target" type="number" min="1" value="1" />
+        <button type="submit">추가</button>
+      </form>
+    </section>
+
+    <div id="groups"></div>
+  </main>
+
+  <script src="quests.js"></script>
+</body>
+</html>

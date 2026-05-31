@@ -1,0 +1,7 @@
+name = "jacehub"
+compatibility_date = "2026-05-25"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jacehub-db"
+database_id = "938e6a7b-f2cc-48fb-980c-bb97a3747a51"

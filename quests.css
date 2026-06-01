@@ -8,10 +8,48 @@ body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color
 .q-summary { font-weight:700; }
 .q-main { padding:20px; max-width:760px; margin:0 auto; }
 .q-card { background:var(--card); border:2px solid var(--line); border-radius:14px; padding:16px; margin-bottom:16px; }
-.q-form { display:flex; flex-wrap:wrap; gap:8px; }
-.q-form input { padding:8px 10px; border:2px solid var(--line); border-radius:10px; font-size:14px; }
-.q-form input#f_title { flex:1; min-width:160px; }
-.q-form button { padding:8px 16px; border:none; border-radius:10px; background:var(--accent); color:#fff; font-weight:700; cursor:pointer; }
+.q-form { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end; }
+.q-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.q-field--full { grid-column:1 / -1; }
+.q-label { font-size:13px; font-weight:700; color:var(--ink); opacity:.75; }
+.q-form input,
+.q-form select {
+  width:100%;
+  padding:11px 12px;
+  border:2px solid var(--line);
+  border-radius:10px;
+  font-size:15px;
+  font-family:inherit;
+  color:var(--ink);
+  background:var(--card);
+}
+.q-form input:focus,
+.q-form select:focus { outline:none; border-color:var(--accent); }
+.q-form select {
+  appearance:none;
+  -webkit-appearance:none;
+  cursor:pointer;
+  padding-right:38px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23c98a3b' d='M1 1l5 5 5-5'/></svg>");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+}
+.q-form select:disabled { opacity:.6; cursor:not-allowed; background-image:none; }
+.q-submit {
+  grid-column:1 / -1;
+  padding:12px 16px;
+  border:none;
+  border-radius:10px;
+  background:var(--accent);
+  color:#fff;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer;
+}
+.q-submit:hover { filter:brightness(1.05); }
+@media (max-width:520px) {
+  .q-form { grid-template-columns:1fr; }
+}
 .q-group h3 { margin:18px 0 8px; text-transform:capitalize; }
 .q-quest { display:flex; align-items:center; gap:12px; background:var(--card); border:2px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
 .q-quest.done { border-color:var(--accent); }

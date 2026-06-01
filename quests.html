@@ -21,12 +21,32 @@
     <section class="q-card">
       <h2>새 퀘스트</h2>
       <form id="addForm" class="q-form">
-        <input id="f_app" list="appList" placeholder="앱 이름 (예: rituall)" required />
-        <datalist id="appList"></datalist>
-        <input id="f_title" placeholder="퀘스트 제목" required />
-        <input id="f_event" placeholder="이벤트 타입 (선택, 비우면 앱 단위)" />
-        <input id="f_target" type="number" min="1" value="1" />
-        <button type="submit">추가</button>
+        <label class="q-field">
+          <span class="q-label">앱</span>
+          <select id="f_app" required></select>
+        </label>
+
+        <label class="q-field">
+          <span class="q-label">행동</span>
+          <select id="f_event"></select>
+        </label>
+
+        <label class="q-field q-field--full hidden" id="customEventField">
+          <span class="q-label">직접 입력할 행동</span>
+          <input id="f_event_custom" placeholder="예: workout_done" autocomplete="off" />
+        </label>
+
+        <label class="q-field q-field--full">
+          <span class="q-label">제목</span>
+          <input id="f_title" placeholder="퀘스트 이름을 정해주세요 (예: 매일 아침 의식)" required />
+        </label>
+
+        <label class="q-field">
+          <span class="q-label">목표 횟수</span>
+          <select id="f_target"></select>
+        </label>
+
+        <button type="submit" class="q-submit">추가</button>
       </form>
     </section>
 

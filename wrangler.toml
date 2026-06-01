@@ -2,6 +2,10 @@ name = "jacehub"
 compatibility_date = "2026-05-25"
 pages_build_output_dir = "dist"
 
+[[kv_namespaces]]
+binding = "VAULT"
+id = "f8313a13cd064768a5297cce16cec1ee"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "jacehub-db"

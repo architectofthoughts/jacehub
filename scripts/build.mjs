@@ -58,6 +58,7 @@ async function build() {
   await Promise.all(staticEntries.map((entry) => cp(path.join(rootDir, entry), path.join(distDir, entry))));
   await cp(path.join(rootDir, 'functions'), path.join(distDir, 'functions'), { recursive: true });
   await cp(path.join(rootDir, 'lib'), path.join(distDir, 'lib'), { recursive: true });
+  await cp(path.join(rootDir, 'icons'), path.join(distDir, 'icons'), { recursive: true });
 
   const manifestFiles = await Promise.all(allEntries.map(async (entry) => {
     const info = await stat(path.join(rootDir, entry));

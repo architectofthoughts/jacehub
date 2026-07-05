@@ -17,6 +17,22 @@
   const NEW_DAYS = 14;
   const UPDATED_DAYS = 7;
 
+  // Bundled SVG tile icons (see icons/lobby/README.md). Loaded from the
+  // manifest at init; apps without an entry fall back to emoji/initial tiles.
+  const ICON_BASE = 'icons/lobby/';
+  let iconManifest = {};
+
+  async function loadIconManifest() {
+    try {
+      const res = await fetch(`${ICON_BASE}manifest.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const parsed = await res.json();
+      if (parsed && typeof parsed === 'object') iconManifest = parsed;
+    } catch {
+      /* offline/file:// — emoji/initial fallback keeps working */
+    }
+  }
+
   const CATEGORY_LABELS = {
     game:        '게임',
     tool:        '도구',
@@ -231,6 +247,7 @@
         category,
         categoryLabel: CATEGORY_LABELS[category] || category,
         palette,
+        svgIcon: iconManifest[app.name] ? ICON_BASE + iconManifest[app.name] : '',
         icon: m.icon || '',
         iconIsEmoji: m.icon ? isEmoji(m.icon) : false,
         initial: getInitial(app.name),
@@ -318,15 +335,19 @@
       if (app.isNew) badges.push('<span class="app-badge app-badge--new">NEW</span>');
       else if (app.isUpdated) badges.push('<span class="app-badge app-badge--updated">UPD</span>');
 
-      const iconStyle = `background: linear-gradient(135deg, ${app.palette.from}, ${app.palette.to});`;
-      const iconContent = app.icon && app.iconIsEmoji
-        ? `<span class="app-tile__icon-emoji" aria-hidden="true">${escapeHtml(app.icon)}</span>`
-        : escapeHtml(app.initial);
+      const iconStyle = app.svgIcon
+        ? ''
+        : `background: linear-gradient(135deg, ${app.palette.from}, ${app.palette.to});`;
+      const iconContent = app.svgIcon
+        ? `<img src="${escapeHtml(app.svgIcon)}" alt="" loading="lazy">`
+        : app.icon && app.iconIsEmoji
+          ? `<span class="app-tile__icon-emoji" aria-hidden="true">${escapeHtml(app.icon)}</span>`
+          : escapeHtml(app.initial);
 
       return `
         <${tag} class="app-tile" ${linkAttrs} aria-label="${escapeHtml(app.name)} 열기">
           ${badges.length ? `<div class="app-tile__badges">${badges.join('')}</div>` : ''}
-          <div class="app-tile__icon" style="${iconStyle}">
+          <div class="app-tile__icon${app.svgIcon ? ' app-tile__icon--svg' : ''}"${iconStyle ? ` style="${iconStyle}"` : ''}>
             ${iconContent}
           </div>
           <div class="app-tile__name" title="${escapeHtml(app.name)}">${escapeHtml(app.name)}</div>
@@ -378,11 +399,13 @@
   }
 
   // ── Init ──
-  function init() {
+  async function init() {
+    await loadIconManifest();
     const savedAt = buildApps();
     bindEvents();
     render();
     setFooterUpdated(savedAt);
+    window.__READY = true; // headless screenshot hook
   }
 
   if (document.readyState === 'loading') {

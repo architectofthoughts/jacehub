@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>jacehub lobby icons</title>
+<style>
+body{margin:0;font-family:sans-serif}
+section{padding:18px 24px}
+.light{background:#f4f4f6}.dark{background:#17171a}.checker{background:conic-gradient(#ddd 0 25%,#fff 0 50%,#ddd 0 75%,#fff 0) 0 0/24px 24px}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+figure{margin:0;text-align:center;width:76px}
+figcaption{font-size:9px;color:#888;margin-top:4px;word-break:break-all}
+.dark figcaption{color:#aaa}
+.big img{width:144px}
+</style>
+<body>
+<section class="light"><div class="row" id="r1"></div></section>
+<section class="dark"><div class="row" id="r2"></div></section>
+<section class="checker"><div class="row" id="r3"></div></section>
+<section class="light big"><div class="row" id="r4"></div></section>
+<script>
+const apps=["kyou","fateweaver","yggdrasil-demo","learneverything","bestserveddish","blurryjourney","youtubewc","crossbell","akashicrecords","jacepages","roommanager","weneedstress","hoochoobothome","refboard"];
+for(const id of ["r1","r2","r3"]) document.getElementById(id).innerHTML=apps.map(a=>`<figure><img src="${a}.svg" width="72"><figcaption>${a}</figcaption></figure>`).join("");
+document.getElementById("r4").innerHTML=apps.slice(0,7).map(a=>`<figure style="width:150px"><img src="${a}.svg"></figure>`).join("")+ "<br>" + apps.slice(7).map(a=>`<figure style="width:150px"><img src="${a}.svg"></figure>`).join("");
+window.__READY=true;
+</script></body>

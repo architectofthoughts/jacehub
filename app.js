@@ -24,7 +24,28 @@
     vaultPin:    'jacehub_vault_pin',
     lobbyCache:  'jacehub_lobby_cache',
     lobbyMeta:   'jacehub_lobby_meta',
+    quickLobbyOpen: 'jacehub_quicklobby_open',
   };
+
+  // Quick lobby icons — same bundled SVG set the lobby page uses (read-only).
+  const QUICK_LOBBY_ICON_BASE = 'icons/lobby/';
+
+  // Deterministic gradient fallback palette — mirrors lobby.js GRADIENT_PALETTES
+  // so tiles look identical between the popup and the full lobby page.
+  const QUICK_LOBBY_GRADIENTS = [
+    { from: '#FF6B6B', to: '#FF4B4B' },
+    { from: '#0EA5E9', to: '#0284C7' },
+    { from: '#17C964', to: '#0E9F4D' },
+    { from: '#F5A623', to: '#F37C20' },
+    { from: '#A78BFA', to: '#7C3AED' },
+    { from: '#F472B6', to: '#DB2777' },
+    { from: '#22D3EE', to: '#0891B2' },
+    { from: '#FBBF24', to: '#D97706' },
+    { from: '#34D399', to: '#059669' },
+    { from: '#818CF8', to: '#4F46E5' },
+    { from: '#F87171', to: '#DC2626' },
+    { from: '#FB923C', to: '#EA580C' },
+  ];
 
   // Categories surfaced in the lobby meta editor.
   const LOBBY_CATEGORIES = [
@@ -112,6 +133,12 @@
     btnMetaClose:     $('#btn-meta-close'),
     btnMetaReset:     $('#btn-meta-reset'),
     metaIconPreview:  $('#meta-icon-preview'),
+    // Quick Lobby
+    quickLobby:       $('#quicklobby'),
+    quickLobbyFab:    $('#quicklobby-fab'),
+    quickLobbyPanel:  $('#quicklobby-panel'),
+    quickLobbyGrid:   $('#quicklobby-grid'),
+    quickLobbyEmpty:  $('#quicklobby-empty'),
     // Toast
     toastContainer:   $('#toast-container'),
   };
@@ -126,6 +153,8 @@
   let currentProjects = [];
   let favoriteProjects = loadFavorites();
   let activeRadarFilter = 'all';
+  // Quick lobby icon manifest, keyed by normalized (trim + lowercase) app name.
+  let quickLobbyIconsByName = {};
 
   // ── Storage ──
   function getConfig() {
@@ -275,6 +304,108 @@
     }));
   }
 
+  // ── Quick Lobby (FAB + popup panel) ──
+  function normalizeAppName(name) {
+    return String(name || '').trim().toLowerCase();
+  }
+
+  async function loadQuickLobbyIcons() {
+    try {
+      const response = await fetch(`${QUICK_LOBBY_ICON_BASE}manifest.json`, { cache: 'no-cache' });
+      if (!response.ok) return;
+      const parsed = await response.json();
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+
+      const byName = {};
+      Object.entries(parsed).forEach(([appName, file]) => {
+        const key = normalizeAppName(appName);
+        if (key && typeof file === 'string' && file) {
+          byName[key] = file;
+        }
+      });
+      quickLobbyIconsByName = byName;
+      renderQuickLobby();
+    } catch {
+      // offline/file:// — gradient+initial fallback keeps working.
+    }
+  }
+
+  // Same seed hash as lobby.js so fallback gradients match the lobby page.
+  function hashAppName(str) {
+    let hash = 0;
+    const value = String(str || '');
+    for (let i = 0; i < value.length; i++) {
+      hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function quickLobbyPaletteFor(name) {
+    return QUICK_LOBBY_GRADIENTS[hashAppName(name) % QUICK_LOBBY_GRADIENTS.length];
+  }
+
+  function getAppInitial(name) {
+    const stripped = String(name || '').trim().replace(/^[\(\[][^\)\]]*[\)\]]\s*/, '');
+    return ([...stripped][0] || '?').toUpperCase();
+  }
+
+  function isQuickLobbyOpen() {
+    return Boolean(dom.quickLobby?.classList.contains('is-open'));
+  }
+
+  function setQuickLobbyOpen(isOpen, { persist = true } = {}) {
+    if (!dom.quickLobby) return;
+    dom.quickLobby.classList.toggle('is-open', isOpen);
+    dom.quickLobbyPanel.setAttribute('aria-hidden', String(!isOpen));
+    dom.quickLobbyFab.setAttribute('aria-expanded', String(isOpen));
+    dom.quickLobbyFab.setAttribute('aria-label', isOpen ? '퀵 로비 닫기' : '퀵 로비 열기');
+    if (persist) {
+      localStorage.setItem(STORAGE_KEYS.quickLobbyOpen, isOpen ? '1' : '0');
+    }
+  }
+
+  function toggleQuickLobby() {
+    setQuickLobbyOpen(!isQuickLobbyOpen());
+  }
+
+  function renderQuickLobby() {
+    if (!dom.quickLobbyGrid) return;
+
+    const favoriteApps = currentProjects.filter((project) => isFavoriteProject(project.name));
+
+    if (favoriteApps.length === 0) {
+      dom.quickLobbyGrid.innerHTML = '';
+      dom.quickLobbyGrid.style.display = 'none';
+      dom.quickLobbyEmpty.style.display = 'block';
+      return;
+    }
+
+    dom.quickLobbyEmpty.style.display = 'none';
+    dom.quickLobbyGrid.style.display = 'grid';
+    dom.quickLobbyGrid.innerHTML = favoriteApps.map((project) => {
+      const primaryUrl = getPrimaryUrl(project);
+      const iconFile = quickLobbyIconsByName[normalizeAppName(project.name)] || '';
+      const iconMarkup = iconFile
+        ? `<span class="quicklobby-tile__icon quicklobby-tile__icon--svg"><img src="${escapeAttribute(QUICK_LOBBY_ICON_BASE + iconFile)}" alt="" loading="lazy"></span>`
+        : (() => {
+            const palette = quickLobbyPaletteFor(project.name);
+            return `<span class="quicklobby-tile__icon" style="background: linear-gradient(135deg, ${palette.from}, ${palette.to});">${escapeHtml(getAppInitial(project.name))}</span>`;
+          })();
+
+      const tag = primaryUrl ? 'a' : 'button';
+      const linkAttrs = primaryUrl
+        ? `href="${escapeAttribute(primaryUrl)}" target="_blank" rel="noopener noreferrer"`
+        : 'type="button" disabled aria-disabled="true" title="연결된 주소 없음"';
+
+      return `
+        <${tag} class="quicklobby-tile" ${linkAttrs} aria-label="${escapeAttribute(project.name)} 열기">
+          ${iconMarkup}
+          <span class="quicklobby-tile__name" title="${escapeAttribute(project.name)}">${escapeHtml(project.name)}</span>
+        </${tag}>
+      `;
+    }).join('');
+  }
+
   function isVaultLinked() {
     return localStorage.getItem(STORAGE_KEYS.vaultLinked) === '1';
   }
@@ -351,6 +482,7 @@
     }
 
     showState('empty');
+    renderQuickLobby();
   }
 
   function setLoading(isLoading) {
@@ -1438,6 +1570,7 @@
     renderRadar(currentProjects);
 
     renderProjects(getVisibleProjects());
+    renderQuickLobby();
   }
 
   // ── Load ──
@@ -1587,6 +1720,10 @@
         closeModal();
         return;
       }
+      if (isQuickLobbyOpen()) {
+        setQuickLobbyOpen(false);
+        return;
+      }
     }
 
     if (isMetaModalOpen() && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -1698,6 +1835,9 @@
       });
     }
 
+    // Quick lobby events
+    if (dom.quickLobbyFab) dom.quickLobbyFab.addEventListener('click', toggleQuickLobby);
+
     document.addEventListener('keydown', handleDocumentKeydown);
     window.addEventListener('beforeunload', () => activeFetchController?.abort());
   }
@@ -1706,7 +1846,11 @@
   function init() {
     bindEvents();
     setToolbarActionsEnabled(false);
+    setQuickLobbyOpen(localStorage.getItem(STORAGE_KEYS.quickLobbyOpen) === '1', { persist: false });
+    renderQuickLobby();
+    loadQuickLobbyIcons();
     loadProjects();
+    window.__READY = true; // headless screenshot hook (same as lobby.js)
   }
 
   if (document.readyState === 'loading') {

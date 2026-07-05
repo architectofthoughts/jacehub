@@ -364,6 +364,28 @@
     </div>
   </div>
 
+  <!-- ═══════════════ Quick Lobby (FAB + popup) ═══════════════ -->
+  <div class="quicklobby" id="quicklobby">
+    <section class="quicklobby__panel" id="quicklobby-panel" role="dialog" aria-label="퀵 로비" aria-hidden="true">
+      <header class="quicklobby__header">
+        <h2 class="quicklobby__title">로비</h2>
+        <a class="quicklobby__more" href="lobby.html" title="전체 로비 페이지 열기">전체 로비 ↗</a>
+      </header>
+      <div class="quicklobby__body">
+        <div class="quicklobby__grid" id="quicklobby-grid"></div>
+        <p class="quicklobby__empty" id="quicklobby-empty" style="display:none;">즐겨찾기한 앱이 없어요 — 카드의 별을 눌러 추가해보세요.</p>
+      </div>
+    </section>
+    <button class="quicklobby__fab" id="quicklobby-fab" type="button" aria-label="퀵 로비 열기" aria-expanded="false" aria-controls="quicklobby-panel">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      </svg>
+    </button>
+  </div>
+
   <!-- ═══════════════ Toast ═══════════════ -->
   <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
 

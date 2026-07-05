@@ -1430,3 +1430,226 @@ body {
   color: var(--c-error);
   border-color: var(--c-error);
 }
+
+/* ═══════════════════════════════════════════════
+   Quick Lobby — FAB + phone-shaped popup panel
+   Sits below modals (z 1000) and toasts (z 1100)
+   ═══════════════════════════════════════════════ */
+
+.quicklobby {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 900;
+}
+
+/* FAB — dark circle, matches .btn--primary color scheme */
+.quicklobby__fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid var(--c-text);
+  border-radius: 50%;
+  background: var(--c-text);
+  color: var(--c-surface);
+  cursor: pointer;
+  box-shadow: var(--shadow-float);
+  transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+.quicklobby__fab:hover {
+  background: #333333;
+  border-color: #333333;
+  transform: translateY(-1px);
+}
+
+.quicklobby__fab:active {
+  background: #444444;
+  transform: translateY(0);
+}
+
+.quicklobby__fab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--shadow-float);
+}
+
+.quicklobby.is-open .quicklobby__fab svg {
+  transform: rotate(90deg);
+}
+
+.quicklobby__fab svg {
+  transition: transform var(--t-fast);
+}
+
+/* Panel — phone-proportioned popup above the FAB */
+.quicklobby__panel {
+  position: fixed;
+  right: 24px;
+  bottom: 90px;
+  width: 352px;
+  max-height: min(640px, 75vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 22px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px) scale(0.98);
+  transform-origin: bottom right;
+  transition: opacity 180ms ease, transform 180ms ease, visibility 0s linear 180ms;
+}
+
+.quicklobby.is-open .quicklobby__panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  transition: opacity 180ms ease, transform 180ms ease, visibility 0s;
+}
+
+.quicklobby__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-sm);
+  padding: var(--s-lg) var(--s-lg) var(--s-md);
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+}
+
+.quicklobby__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--c-text);
+  letter-spacing: -0.02em;
+}
+
+.quicklobby__more {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--c-text-muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+
+.quicklobby__more:hover {
+  border-color: var(--c-border-hover);
+  background: var(--c-surface-hover);
+  color: var(--c-text);
+}
+
+.quicklobby__more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.quicklobby__body {
+  padding: var(--s-lg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.quicklobby__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-lg) var(--s-sm);
+}
+
+.quicklobby__empty {
+  padding: var(--s-xl) var(--s-md);
+  font-size: 0.8125rem;
+  color: var(--c-text-muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Tiles — compact icon + name, lobby-consistent visuals */
+.quicklobby-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--r-md);
+}
+
+.quicklobby-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.quicklobby-tile[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.quicklobby-tile__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+  color: #FFFFFF;
+  font-size: 1.375rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  user-select: none;
+  overflow: hidden;
+  transition: transform var(--t-fast);
+}
+
+.quicklobby-tile:hover .quicklobby-tile__icon {
+  transform: scale(1.05);
+}
+
+.quicklobby-tile__icon--svg {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+}
+
+.quicklobby-tile__icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.quicklobby-tile__name {
+  max-width: 100%;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--c-text-muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrow screens — panel hugs viewport with side margins */
+@media (max-width: 420px) {
+  .quicklobby {
+    right: 16px;
+    bottom: 16px;
+  }
+  .quicklobby__panel {
+    right: 16px;
+    left: 16px;
+    bottom: 82px;
+    width: auto;
+  }
+}

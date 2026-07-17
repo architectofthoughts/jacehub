@@ -913,6 +913,20 @@
 
   // ── Render Helpers ──
   function getProjectStatusKey(project) {
+    if (project._type === 'service') {
+      switch (project._health) {
+        case 'healthy':
+          return 'success';
+        case 'down':
+        case 'inactive':
+          return 'failure';
+        case 'degraded':
+          return 'active';
+        default:
+          return 'unknown';
+      }
+    }
+
     const stage = project.latest_deployment?.latest_stage;
     if (!stage) return 'active';
 
@@ -928,14 +942,17 @@
 
   function getDeploymentStatus(project) {
     const statusKey = getProjectStatusKey(project);
+    const isService = project._type === 'service';
 
     switch (statusKey) {
       case 'success':
-        return { key: 'success', label: '활성', class: 'success' };
+        return { key: 'success', label: isService ? '온라인' : '활성', class: 'success' };
       case 'failure':
-        return { key: 'failure', label: '실패', class: 'failure' };
+        return { key: 'failure', label: isService ? '오프라인' : '실패', class: 'failure' };
+      case 'unknown':
+        return { key: 'unknown', label: '상태 미확인', class: 'muted' };
       default:
-        return { key: 'active', label: '진행 중', class: 'active' };
+        return { key: 'active', label: isService ? '불안정' : '진행 중', class: 'active' };
     }
   }
 
@@ -991,6 +1008,43 @@
 
   function getProjectRadar(project) {
     const statusKey = getProjectStatusKey(project);
+
+    // Self-hosted 서비스: 배포 나이·도메인·설명 페널티 대신 터널 헬스만 본다.
+    if (project._type === 'service') {
+      const signals = [];
+      let score = 0;
+
+      if (statusKey === 'failure') {
+        score += 6;
+        signals.push('터널이 응답하지 않습니다 — bani 허브를 확인하세요');
+      } else if (statusKey === 'active') {
+        score += 3;
+        signals.push('터널 상태가 불안정합니다 (degraded)');
+      } else if (statusKey === 'unknown') {
+        signals.push('셀프호스트 서비스입니다 — 토큰에 Cloudflare Tunnel:Read를 주면 라이브 상태가 보입니다');
+      } else {
+        signals.push('터널 정상 — bani 허브에서 가동 중입니다');
+      }
+      signals.push('bani WSL 상주 서비스입니다 (CF Tunnel + Access)');
+
+      if (isFavoriteProject(project.name)) {
+        signals.push('즐겨찾기 프로젝트입니다');
+      }
+
+      const severity = score >= 5 ? 'attention' : score >= 3 ? 'watch' : 'healthy';
+      return {
+        score,
+        severity,
+        label: severity === 'attention' ? '즉시 확인' : severity === 'watch' ? '관찰 필요' : '정상',
+        ageDays: null,
+        hasCustomDomain: true,
+        isFresh: false,
+        isStale: false,
+        signals,
+        summary: signals[0],
+      };
+    }
+
     const ageDays = getProjectAgeDays(project);
     const hasCustomDomain = (project.domains?.length || 0) > 0;
     const signals = [];
@@ -1425,6 +1479,12 @@
         return favoriteDelta;
       }
 
+      // Self-hosted 콕핏 서비스는 즐겨찾기 다음으로 고정 — 배포 타임스탬프가 없어 바닥에 가라앉는 것 방지
+      const serviceDelta = Number(right._type === 'service') - Number(left._type === 'service');
+      if (serviceDelta !== 0) {
+        return serviceDelta;
+      }
+
       if (sortValue === 'name') {
         return String(left.name || '').localeCompare(String(right.name || ''), 'ko');
       }
@@ -1477,10 +1537,12 @@
       const isFavorite = isFavoriteProject(project.name);
       const isWorker = project._type === 'worker';
       const isVercel = project._type === 'vercel';
+      const isService = project._type === 'service';
       const meta = [
         `<span class="card__tag card__tag--${radar.severity}">${escapeHtml(radar.label)}</span>`,
         isWorker ? '<span class="card__tag card__tag--worker">Worker</span>' : '',
         isVercel ? '<span class="card__tag card__tag--vercel">Vercel</span>' : '',
+        isService ? '<span class="card__tag card__tag--service">Self-hosted</span>' : '',
         framework ? `<span class="card__tag">${escapeHtml(framework)}</span>` : '',
         domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '<span class="card__tag card__tag--muted">도메인 미연결</span>',
       ].filter(Boolean).join('');
@@ -1552,7 +1614,7 @@
                 </span>
               `}
             </div>
-            <span class="card__time">${getRelativeTime(deployedAt)}</span>
+            <span class="card__time">${isService ? 'bani 허브 상주' : getRelativeTime(deployedAt)}</span>
           </div>
         </article>
       `;
@@ -1628,6 +1690,7 @@
       if (meta.pagesCount) parts.push(`Pages ${meta.pagesCount}개`);
       if (meta.workersCount) parts.push(`Workers ${meta.workersCount}개`);
       if (meta.vercelCount) parts.push(`Vercel ${meta.vercelCount}개`);
+      if (meta.servicesCount) parts.push(`셀프호스트 ${meta.servicesCount}개`);
       const summary = parts.length > 0 ? parts.join(' + ') : `${projectList.length}개 프로젝트`;
       showToast(`${summary}를 불러왔습니다.`, 'success');
 

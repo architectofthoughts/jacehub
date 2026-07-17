@@ -11,6 +11,23 @@ const CORS_HEADERS = {
 const FETCH_TIMEOUT_MS = 8000;
 const PROJECT_DETAIL_CONCURRENCY = 4;
 
+// Self-hosted cockpit services (bani WSL 상주, CF Tunnel + Access 뒤).
+// CF/Vercel API에는 안 잡히므로 여기서 직접 합류시킨다.
+const SELF_HOSTED_SERVICES = [
+  {
+    name: 'warren',
+    host: 'warren.lumilaboratory.cc',
+    description: '3머신 tmux 에이전트 관제 콕핏 PWA (bani 허브 :8793)',
+    tunnel: 'bani-cockpit',
+  },
+  {
+    name: 'ccwatch',
+    host: 'ccwatch.lumilaboratory.cc',
+    description: '다계정 Claude Code usage 모니터 (bani 허브 :8790)',
+    tunnel: 'bani-cockpit',
+  },
+];
+
 function jsonResponse(body, init = {}) {
   return Response.json(body, {
     ...init,
@@ -93,6 +110,58 @@ function normalizeWorkerScript(script, workersSubdomain) {
     framework: '',
     created_on: script.created_on || '',
     _type: 'worker',
+  };
+}
+
+// 터널 상태 조회 (healthy|degraded|down|inactive). 토큰에 Cloudflare Tunnel:Read가
+// 없으면 'unknown'으로 폴백 — 카드 자체는 항상 뜬다.
+async function fetchTunnelStatuses(accountId, cfHeaders) {
+  const statuses = new Map();
+  const tunnelNames = [...new Set(SELF_HOSTED_SERVICES.map((service) => service.tunnel))];
+
+  await Promise.all(tunnelNames.map(async (tunnelName) => {
+    try {
+      const { payload } = await fetchJson(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/cfd_tunnel?name=${encodeURIComponent(tunnelName)}&is_deleted=false`,
+        { headers: cfHeaders },
+        `터널 ${tunnelName} 상태를 불러오지 못했습니다`
+      );
+      const tunnel = Array.isArray(payload?.result) ? payload.result[0] : null;
+      statuses.set(tunnelName, tunnel?.status || 'unknown');
+    } catch {
+      statuses.set(tunnelName, 'unknown');
+    }
+  }));
+
+  return statuses;
+}
+
+function healthToStageStatus(health) {
+  switch (health) {
+    case 'healthy':
+      return 'success';
+    case 'down':
+    case 'inactive':
+      return 'failure';
+    default:
+      return 'active';
+  }
+}
+
+function normalizeSelfHostedService(service, health) {
+  return {
+    name: service.name,
+    subdomain: '',
+    domains: [service.host],
+    latest_deployment: health === 'unknown'
+      ? { created_on: '', latest_stage: null }
+      : { created_on: '', latest_stage: { status: healthToStageStatus(health), name: 'health' } },
+    source: {},
+    framework: '',
+    created_on: '',
+    _type: 'service',
+    _description: service.description,
+    _health: health,
   };
 }
 
@@ -196,6 +265,8 @@ export async function onRequest(context) {
         )
       : Promise.resolve({ payload: { projects: [] } });
 
+    const tunnelStatusesPromise = fetchTunnelStatuses(accountId, cfHeaders);
+
     const [pagesResult, workersResult, subdomainResult, vercelResult] = await Promise.allSettled([
       fetchJson(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects`,
@@ -276,8 +347,14 @@ export async function onRequest(context) {
       return detail;
     });
 
-    // Merge Pages + Workers + Vercel, then enrich all with GitHub descriptions
-    const allProjects = [...enrichedPages, ...workersList, ...vercelList];
+    // Self-hosted 서비스 합류 (터널 헬스 배지 포함)
+    const tunnelStatuses = await tunnelStatusesPromise;
+    const serviceList = SELF_HOSTED_SERVICES.map((service) =>
+      normalizeSelfHostedService(service, tunnelStatuses.get(service.tunnel) || 'unknown')
+    );
+
+    // Merge Pages + Workers + Vercel + Self-hosted, then enrich with GitHub descriptions
+    const allProjects = [...enrichedPages, ...workersList, ...vercelList, ...serviceList];
     const repoDescriptionCache = new Map();
     let ghUsernamePromise = null;
 
@@ -296,6 +373,10 @@ export async function onRequest(context) {
     }
 
     const enriched = await mapWithConcurrency(allProjects, PROJECT_DETAIL_CONCURRENCY, async (project) => {
+      if (project._type === 'service') {
+        return project;
+      }
+
       let owner = project.source?.config?.owner || '';
       let repoName = project.source?.config?.repo_name || '';
 
@@ -330,6 +411,7 @@ export async function onRequest(context) {
       pagesCount: enrichedPages.length,
       workersCount: workersList.length,
       vercelCount: vercelList.length,
+      servicesCount: serviceList.length,
     };
     if (pagesError) {
       meta.pagesError = pagesError;

@@ -751,6 +751,11 @@ body {
   color: #C88500;
 }
 
+.card__status--muted {
+  border: 1px solid var(--c-text-dim);
+  color: var(--c-text-dim);
+}
+
 .card__status-dot {
   width: 6px;
   height: 6px;
@@ -818,6 +823,10 @@ body {
   color: #0F0F10;
   background: linear-gradient(180deg, #FAFAFA 0%, #EAEAEA 100%);
   border-color: #0F0F10;
+}
+
+.card__tag--service {
+  color: #7C3AED;
 }
 
 .card__signal {

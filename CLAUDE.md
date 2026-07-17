@@ -2,6 +2,10 @@
 
 Cloudflare/Vercel/GitHub 프로젝트 대시보드 + 즐겨찾기 보관소 + 데일리 퀘스트 시스템.
 
+## Self-hosted 서비스 카드
+
+CF/Vercel API에 안 잡히는 셀프호스트 서비스(warren·ccwatch, bani WSL + CF Tunnel/Access)는 `functions/api/projects.js`의 `SELF_HOSTED_SERVICES` 상수로 직접 합류시킨다. 항목 추가/제거는 그 상수만 고치면 된다. 헬스 배지는 CF Tunnel API(`cfd_tunnel`)로 조회 — 사용자 API 토큰에 **Account > Cloudflare Tunnel:Read** 권한이 있어야 라이브(온라인/오프라인)로 뜨고, 없으면 "상태 미확인"으로 폴백된다. 클라이언트는 `_type: 'service'` 분기(app.js: 상태 키·레이더·정렬 고정·카드 태그)로 처리.
+
 ## Cloudflare Deployment
 
 - **Platform**: Cloudflare Pages

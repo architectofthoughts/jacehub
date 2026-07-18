@@ -13,6 +13,12 @@ const PROJECT_DETAIL_CONCURRENCY = 4;
 
 // Self-hosted cockpit services (bani WSL 상주, CF Tunnel + Access 뒤).
 // CF/Vercel API에는 안 잡히므로 여기서 직접 합류시킨다.
+// 카드가 가리킬 URL을 강제하는 프로젝트별 오버라이드.
+// mnemo: 프로덕션 apex는 Access 밖이라 스텁 전용 — 실데이터는 Access(OTP) 뒤 live 브랜치 별칭에만 있다.
+const PROJECT_URL_OVERRIDES = {
+  mnemo: 'live.mnemo-65c.pages.dev',
+};
+
 const SELF_HOSTED_SERVICES = [
   {
     name: 'warren',
@@ -344,6 +350,10 @@ export async function onRequest(context) {
       }
 
       detail._type = 'pages';
+      const overrideHost = PROJECT_URL_OVERRIDES[detail.name];
+      if (overrideHost) {
+        detail.domains = [overrideHost, ...(detail.domains || []).filter((d) => d !== overrideHost)];
+      }
       return detail;
     });
 

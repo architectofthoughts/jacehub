@@ -22,6 +22,13 @@ jacehub는 "보는 관제탑 + 런처"로 홀쭉하게, 습관·퀘스트 루프
 - **jacemaster 이식**: D1 스키마 + quest-logic + ingest/progress API + 퀘스트 UI(5탭 셸 내), 연동 앱(rituall 등) 엔드포인트 전환
 - **데이터**: 퀘스트 D1 백업 → 이전, VAULT KV는 유지 (2B에서 계속 사용)
 
+## 집행 로그 (2026-07-19, 커밋 74fb933)
+
+- 정찰 결과 **이식은 이미 6월에 완료돼 있었음**: jacemaster가 자체 퀘스트 시스템(스키마+API+카탈로그 11종)의 정본(6퀘스트·170이벤트), jacehub 잔존분은 첫날 스모크 2행뿐. rituall도 jacemaster 내장이라 엔드포인트 전환 불필요.
+- jacehub-db 전체 덤프 → `backup/jacehub-db-20260719.sql` 후 퀘스트 코드·D1 바인딩 전면 제거 (D1 인스턴스 자체는 CF에 휴면 보존).
+- 2B 구현: 볼트 봉투에 `lobby{cache,meta}` 동승(서버는 필드 부재 시 이월), 대시보드 디바운스 동기화, 로비 백그라운드 하이드레이션(savedAt 최신 우선)+빈 화면 PIN 버튼. node --test 4/4, 헤드리스 E2E(새 기기 시나리오)·프로덕션 smoke 통과.
+- 구 `/quests.html` 경로는 Pages SPA 폴백으로 허브에 안착(무해).
+
 ## 리뷰 관찰 포인트 (→ /rteam)
 
 - 2B 승격 후 폰↔PC 즐겨찾기·스냅샷 동기 일관성 — 충돌 시 최신 우선이 체감상 자연스러운지

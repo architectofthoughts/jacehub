@@ -233,12 +233,34 @@
 
   function saveFavorites() {
     localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify([...favoriteProjects]));
-    if (isVaultLinked()) {
-      syncFavoritesToVault();
-    }
+    queueVaultSync();
   }
 
-  async function syncFavoritesToVault() {
+  // 볼트에 실어 보낼 로비 스냅샷+메타 (없으면 undefined — 서버가 기존 값을 이월)
+  function collectLobbyPayload() {
+    const payload = {};
+    try {
+      const cache = JSON.parse(localStorage.getItem(STORAGE_KEYS.lobbyCache) || 'null');
+      if (cache && Array.isArray(cache.apps)) payload.cache = cache;
+    } catch {
+      // 손상 캐시는 미포함 — 서버 이월에 맡긴다.
+    }
+    const meta = loadLobbyMeta();
+    if (Object.keys(meta).length > 0) payload.meta = meta;
+    return payload.cache || payload.meta ? payload : undefined;
+  }
+
+  let vaultSyncTimer = null;
+  let lastVaultSyncBody = '';
+
+  // 즐겨찾기·스냅샷·메타 변경을 하나의 봉투 POST로 묶는다 (연쇄 저장 코얼레싱)
+  function queueVaultSync() {
+    if (!isVaultLinked()) return;
+    clearTimeout(vaultSyncTimer);
+    vaultSyncTimer = setTimeout(syncVaultToServer, 1500);
+  }
+
+  async function syncVaultToServer() {
     const pin = localStorage.getItem(STORAGE_KEYS.vaultPin) || '';
     if (!/^\d{6}$/.test(pin)) {
       // PIN 분실 — 다음 unlock까지 서버 동기화 보류.
@@ -246,21 +268,43 @@
     }
     const { accountId, apiToken, ghToken, vercelToken } = getConfig();
     if (!accountId || !apiToken) return;
+    const body = JSON.stringify({
+      pin,
+      accountId,
+      apiToken,
+      ghToken,
+      vercelToken,
+      favorites: [...favoriteProjects],
+      lobby: collectLobbyPayload(),
+    });
+    if (body === lastVaultSyncBody) return;
     try {
       await fetch('/api/vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pin,
-          accountId,
-          apiToken,
-          ghToken,
-          vercelToken,
-          favorites: [...favoriteProjects],
-        }),
+        body,
       });
+      lastVaultSyncBody = body;
     } catch {
-      // 네트워크 오류는 localStorage 미러로 우회 — 다음 토글에서 재시도됨.
+      // 네트워크 오류는 localStorage 미러로 우회 — 다음 변경에서 재시도됨.
+    }
+  }
+
+  // 서버 봉투의 로비 스냅샷이 로컬보다 새로우면 받아들인다 (최신 우선)
+  function applyServerLobby(lobby) {
+    const serverCache = lobby?.cache;
+    if (!serverCache || !Array.isArray(serverCache.apps)) return;
+    let localSavedAt = 0;
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.lobbyCache) || 'null');
+      localSavedAt = Number(raw?.savedAt) || 0;
+    } catch {
+      // 손상 로컬 캐시 → 서버 우선
+    }
+    if ((Number(serverCache.savedAt) || 0) <= localSavedAt) return;
+    localStorage.setItem(STORAGE_KEYS.lobbyCache, JSON.stringify(serverCache));
+    if (lobby.meta && typeof lobby.meta === 'object' && !Array.isArray(lobby.meta)) {
+      localStorage.setItem(STORAGE_KEYS.lobbyMeta, JSON.stringify(lobby.meta));
     }
   }
 
@@ -278,6 +322,7 @@
 
   function saveLobbyMeta(meta) {
     localStorage.setItem(STORAGE_KEYS.lobbyMeta, JSON.stringify(meta || {}));
+    queueVaultSync();
   }
 
   function projectSnapshotForLobby(project) {
@@ -302,6 +347,7 @@
       savedAt: Date.now(),
       apps,
     }));
+    queueVaultSync();
   }
 
   // ── Quick Lobby (FAB + popup panel) ──
@@ -747,6 +793,7 @@
       if (Array.isArray(credentials.favorites)) {
         applyServerFavorites(credentials.favorites);
       }
+      applyServerLobby(credentials.lobby);
       updateVaultUI();
       clearVaultPinInputs();
 
@@ -798,6 +845,7 @@
           ghToken,
           vercelToken,
           favorites: [...favoriteProjects],
+          lobby: collectLobbyPayload(),
         }),
       });
       const data = await response.json();
@@ -853,6 +901,7 @@
           ghToken,
           vercelToken,
           favorites: [...favoriteProjects],
+          lobby: collectLobbyPayload(),
         }),
       });
       const data = await response.json();

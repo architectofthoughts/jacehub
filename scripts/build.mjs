@@ -8,9 +8,8 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 
-const staticEntries = ['index.html', 'style.css', 'app.js', 'lobby.html', 'lobby.css', 'lobby.js', 'quests.html', 'quests.css', 'quests.js', 'retroarch-hotkeys.html'];
-const functionEntries = ['functions/api/projects.js', 'functions/api/vault.js', 'functions/api/_quest_shared.js', 'functions/api/quests.js', 'functions/api/ingest.js', 'functions/api/progress.js'];
-const libEntries = ['lib/quest-logic.js'];
+const staticEntries = ['index.html', 'style.css', 'app.js', 'lobby.html', 'lobby.css', 'lobby.js', 'retroarch-hotkeys.html'];
+const functionEntries = ['functions/api/projects.js', 'functions/api/vault.js'];
 
 function assertNodeCheck(relativeFile) {
   const result = spawnSync(process.execPath, ['--check', relativeFile], {
@@ -32,7 +31,7 @@ async function assertFile(relativeFile) {
 }
 
 async function build() {
-  const allEntries = [...staticEntries, ...functionEntries, ...libEntries];
+  const allEntries = [...staticEntries, ...functionEntries];
   await Promise.all(allEntries.map(assertFile));
 
   const indexHtml = await readFile(path.join(rootDir, 'index.html'), 'utf8');
@@ -45,19 +44,13 @@ async function build() {
     throw new Error('lobby.html must reference lobby.css and lobby.js');
   }
 
-  const questsHtml = await readFile(path.join(rootDir, 'quests.html'), 'utf8');
-  if (!questsHtml.includes('quests.css') || !questsHtml.includes('quests.js')) {
-    throw new Error('quests.html must reference quests.css and quests.js');
-  }
-
-  ['app.js', 'lobby.js', 'quests.js', ...functionEntries, ...libEntries].forEach(assertNodeCheck);
+  ['app.js', 'lobby.js', ...functionEntries].forEach(assertNodeCheck);
 
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
 
   await Promise.all(staticEntries.map((entry) => cp(path.join(rootDir, entry), path.join(distDir, entry))));
   await cp(path.join(rootDir, 'functions'), path.join(distDir, 'functions'), { recursive: true });
-  await cp(path.join(rootDir, 'lib'), path.join(distDir, 'lib'), { recursive: true });
   await cp(path.join(rootDir, 'icons'), path.join(distDir, 'icons'), { recursive: true });
 
   const manifestFiles = await Promise.all(allEntries.map(async (entry) => {

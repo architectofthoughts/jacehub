@@ -5,8 +5,3 @@ pages_build_output_dir = "dist"
 [[kv_namespaces]]
 binding = "VAULT"
 id = "f8313a13cd064768a5297cce16cec1ee"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "jacehub-db"
-database_id = "938e6a7b-f2cc-48fb-980c-bb97a3747a51"

@@ -337,6 +337,10 @@
   text-decoration: none;
 }
 .lobby-empty__msg a:hover { text-decoration: underline; }
+.lobby-empty__sync {
+  margin-top: var(--s-md);
+  color: var(--c-text-muted);
+}
 
 /* ── No match state ── */
 .lobby-nomatch {

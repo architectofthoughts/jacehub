@@ -110,6 +110,20 @@ function validatePin(pin) {
   return typeof pin === 'string' && /^\d{6}$/.test(pin);
 }
 
+// 로비 스냅샷 봉투 정규화 — 유효한 cache/meta만 남기고, 둘 다 없으면 null.
+export function normalizeLobby(lobby) {
+  if (!lobby || typeof lobby !== 'object' || Array.isArray(lobby)) return null;
+  const out = {};
+  const { cache, meta } = lobby;
+  if (cache && typeof cache === 'object' && !Array.isArray(cache) && Array.isArray(cache.apps)) {
+    out.cache = { savedAt: Number(cache.savedAt) || 0, apps: cache.apps };
+  }
+  if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+    out.meta = meta;
+  }
+  return out.cache || out.meta ? out : null;
+}
+
 function kvKeyForPin(pin) {
   return `vault:pin:${pin}`;
 }
@@ -141,7 +155,7 @@ export async function onRequest(context) {
       );
     }
 
-    const { pin, accountId, apiToken, ghToken, vercelToken, favorites } = body;
+    const { pin, accountId, apiToken, ghToken, vercelToken, favorites, lobby } = body;
 
     if (!validatePin(pin)) {
       return jsonResponse(
@@ -168,12 +182,25 @@ export async function onRequest(context) {
         )]
       : [];
 
+    // 봉투는 통째로 덮어쓰기 방식 — lobby를 안 보낸 호출이 기존 스냅샷을
+    // 지우지 않도록, 필드 부재 시 이전 봉투에서 이월한다.
+    let lobbyEntry = normalizeLobby(lobby);
+    if (lobby === undefined && existing) {
+      try {
+        const previous = await decryptCredentials(pin, existing);
+        lobbyEntry = normalizeLobby(previous.lobby);
+      } catch {
+        lobbyEntry = null;
+      }
+    }
+
     const credentials = {
       accountId,
       apiToken,
       ghToken: ghToken || '',
       vercelToken: vercelToken || '',
       favorites: normalizedFavorites,
+      ...(lobbyEntry ? { lobby: lobbyEntry } : {}),
     };
     const encrypted = await encryptCredentials(pin, credentials);
 

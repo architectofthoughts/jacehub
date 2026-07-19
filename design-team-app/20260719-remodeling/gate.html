@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jacehub 리모델링 — 결정 게이트</title>
+<style>
+/* ═══ 게이트 자체 스타일 — jacehub Carbon 토큰 승계 ═══ */
+:root{
+  --bg:#FAFAFA; --surface:#FFF; --surface-hover:#F6F6F6;
+  --border:#EAEAEA; --border-hover:#999;
+  --text:#171717; --muted:#666; --dim:#999;
+  --accent:#0EA5E9; --accent-2:#0284C7; --success:#17C964; --warning:#F5A623; --error:#EE0000;
+  --q-bg:#f6f1e7; --q-card:#fffdf8; --q-ink:#4a3f35; --q-accent:#c98a3b; --q-line:#e6ddcd;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  --mono:'SF Mono','Cascadia Mono','Consolas',monospace;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.55;-webkit-font-smoothing:antialiased;padding-bottom:132px}
+button{font-family:inherit}
+
+/* ── 상단 헤더 ── */
+.ghead{position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--border)}
+.ghead__in{max-width:1180px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.glogo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#0EA5E9,#0284C7);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.glogo svg{width:16px;height:16px}
+.ghead h1{font-size:.95rem;font-weight:700;letter-spacing:-.02em}
+.ghead .sub{font-size:.75rem;color:var(--muted);border-left:1px solid var(--border);padding-left:10px}
+main{max-width:1180px;margin:0 auto;padding:22px 18px}
+
+/* ── 3분 요약 ── */
+.brief{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:26px}
+.brief h2{font-size:1rem;margin-bottom:10px;letter-spacing:-.02em}
+.brief ol{margin:0 0 12px 20px;font-size:.85rem;color:var(--text)}
+.brief li{margin-bottom:3px}
+.brief li b{color:var(--accent-2)}
+.pins{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.pin{font-size:.72rem;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface-hover);color:var(--muted)}
+.pin--safe{border-color:#c9ecd8;background:#f0fbf4;color:#0d7a3f}
+.howto{font-size:.82rem;color:var(--muted);border-top:1px dashed var(--border);padding-top:11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.howto code{font-family:var(--mono);font-size:.76rem;background:var(--surface-hover);border:1px solid var(--border);border-radius:5px;padding:1px 7px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:7px;padding:6px 13px;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--text);transition:all .15s ease}
+.btn:hover{border-color:var(--border-hover);background:var(--surface-hover)}
+.btn--accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn--accent:hover{background:var(--accent-2);border-color:var(--accent-2)}
+
+/* ── 축 섹션 ── */
+.axis{margin-bottom:34px}
+.axis__head{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;flex-wrap:wrap}
+.axis__num{font-family:var(--mono);font-size:.72rem;font-weight:700;color:#fff;background:var(--text);border-radius:6px;padding:2px 8px;letter-spacing:.02em}
+.axis__head h2{font-size:1.05rem;letter-spacing:-.02em}
+.axis__q{font-size:.83rem;color:var(--muted);margin-bottom:13px}
+.axis__note{font-size:.76rem;color:var(--muted);background:var(--surface-hover);border:1px dashed var(--border);border-radius:8px;padding:7px 12px;margin-bottom:13px}
+.axis__note b{color:var(--accent-2)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+@media(max-width:700px){.opts{grid-template-columns:1fr}}
+
+/* ── 선택지 카드 ── */
+.opt{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 15px 13px;cursor:pointer;transition:border-color .15s ease,box-shadow .15s ease;display:flex;flex-direction:column;gap:10px}
+.opt:hover{border-color:var(--border-hover)}
+.opt.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,165,233,.18)}
+.opt.sel .opt__code{background:var(--accent);border-color:var(--accent);color:#fff}
+.opt__top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.opt__code{font-family:var(--mono);font-size:.78rem;font-weight:700;border:1.5px solid var(--text);border-radius:6px;padding:1px 7px;transition:all .15s ease}
+.opt__name{font-size:.92rem;font-weight:700;letter-spacing:-.01em}
+.opt__check{margin-left:auto;width:19px;height:19px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.66rem;color:transparent;transition:all .15s ease;flex-shrink:0}
+.opt.sel .opt__check{background:var(--accent);border-color:var(--accent);color:#fff}
+.badge{font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px}
+.badge--rec{background:#f0fbf4;color:#0d7a3f;border:1px solid #b9e6ca}
+.badge--exp{background:#fff7e8;color:#a06a10;border:1px solid #f3ddb1}
+.badge--hold{background:#f3f3f3;color:#777;border:1px solid #ddd}
+.opt__desc{font-size:.8rem;color:var(--text)}
+.opt__trade{font-size:.75rem;color:var(--muted)}
+.opt__trade b{color:var(--text)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.chip{font-size:.68rem;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--surface-hover)}
+.chip--low{border-color:#c9ecd8;background:#f0fbf4;color:#0d7a3f}
+.chip--mid{border-color:#f3ddb1;background:#fff7e8;color:#a06a10}
+.chip--high{border-color:#f4c1c1;background:#fdf1f1;color:#b32828}
+
+/* ── 미니 목업 공통 ── */
+.mock{display:flex;flex-direction:column;align-items:center;gap:7px;background:var(--surface-hover);border:1px solid var(--border);border-radius:10px;padding:13px 10px 10px;cursor:default}
+.mock__cap{font-size:.7rem;color:var(--dim);text-align:center}
+.ph{width:238px;height:428px;background:#FAFAFA;border:1px solid #D8D8D8;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 3px 10px rgba(0,0,0,.07);font-size:9.5px;flex-shrink:0}
+.ph--beige{background:var(--q-bg)}
+.ph-top{height:26px;background:#fff;border-bottom:1px solid #EAEAEA;display:flex;align-items:center;gap:5px;padding:0 9px;flex-shrink:0}
+.ph--beige .ph-top{background:var(--q-card);border-bottom:2px solid var(--q-line)}
+.ph-logo{width:12px;height:12px;border-radius:3.5px;background:linear-gradient(135deg,#0EA5E9,#0284C7);flex-shrink:0}
+.ph-title{font-weight:700;font-size:9.5px;letter-spacing:-.01em}
+.ph-top .r{margin-left:auto;color:#999;font-size:8px}
+.ph-body{flex:1;overflow:hidden;padding:8px;display:flex;flex-direction:column;gap:7px}
+/* 대시보드 조각들 */
+.m-stats{display:flex;gap:4px}
+.m-stat{flex:1;background:#fff;border:1px solid #EAEAEA;border-radius:6px;padding:4px 2px;text-align:center}
+.m-stat b{display:block;font-size:11px}
+.m-stat span{font-size:6.8px;color:#999}
+.m-radar{background:linear-gradient(135deg,#EBF7FE,#F5FBFF);border:1px solid #cfeafc;border-radius:7px;padding:6px 8px}
+.m-radar .eb{font-size:6.5px;letter-spacing:.08em;color:#0284C7;font-weight:700}
+.m-radar .tt{font-size:8.5px;font-weight:700;margin:1px 0}
+.m-radar .mm{font-size:7.5px;color:#666}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.m-card{background:#fff;border:1px solid #EAEAEA;border-radius:6px;padding:5px 6px}
+.m-card .nm{font-weight:700;font-size:8.5px;display:flex;align-items:center;gap:3px}
+.m-card .sb{font-size:6.8px;color:#999;margin-top:1px}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--success);flex-shrink:0}
+.dot--w{background:var(--warning)}.dot--e{background:var(--error)}.dot--g{background:#bbb}
+/* Today 스트립·피드 */
+.m-strip{background:#fff;border:1px solid #EAEAEA;border-left:3px solid var(--accent);border-radius:7px;padding:6px 8px}
+.m-strip .hd{font-size:8px;font-weight:700;color:#0284C7;margin-bottom:3px}
+.feed{display:flex;flex-direction:column;gap:3px}
+.feed i{font-style:normal;font-size:7.6px;color:#444;display:flex;align-items:center;gap:4px}
+.feed .tm{margin-left:auto;color:#bbb;font-size:6.5px}
+.m-qsum{border-top:1px dashed #EAEAEA;margin-top:4px;padding-top:4px;font-size:7.5px;color:#666}
+/* 탭 */
+.ph-tabs{display:flex;gap:0;border-bottom:1px solid #EAEAEA;background:#fff;flex-shrink:0}
+.ph-tab{flex:1;text-align:center;padding:5px 0;font-size:8.5px;font-weight:700;color:#999;border-bottom:2px solid transparent;cursor:pointer;user-select:none}
+.ph-tab.on{color:#0284C7;border-bottom-color:var(--accent)}
+/* 로비 타일 */
+.l-hero{font-size:13px;font-weight:800;letter-spacing:-.02em}
+.l-sub{font-size:7.5px;color:#999;margin-top:-4px}
+.l-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:2px}
+.l-tile{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+.l-ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.l-nm{font-size:7.2px;color:#444;font-weight:600}
+.l-badge{position:absolute;top:-4px;right:8px;min-width:13px;height:13px;border-radius:999px;background:var(--error);color:#fff;font-size:7.5px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;border:1.5px solid #FAFAFA;transition:opacity .2s}
+.l-cheer{margin-top:auto;text-align:center;font-size:7.4px;color:#0d7a3f;background:#f0fbf4;border:1px solid #c9ecd8;border-radius:6px;padding:3px}
+.m-toggle{display:flex;align-items:center;gap:5px;font-size:7.2px;color:#888;justify-content:flex-end}
+.sw{width:22px;height:12px;border-radius:999px;background:var(--success);position:relative;cursor:pointer;transition:background .2s}
+.sw::after{content:'';position:absolute;top:1.5px;left:11px;width:9px;height:9px;border-radius:50%;background:#fff;transition:left .2s}
+.sw.off{background:#ccc}.sw.off::after{left:2px}
+/* 퀘스트(베이지) 조각 */
+.q-row{background:var(--q-card);border:1.6px solid var(--q-line);border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:6px}
+.q-row .t{flex:1;font-weight:700;font-size:8.4px;color:var(--q-ink)}
+.q-bar{width:44px;height:5px;background:var(--q-line);border-radius:3px;overflow:hidden;flex-shrink:0}
+.q-bar i{display:block;height:100%;background:var(--q-accent)}
+.q-num{font-size:7px;color:var(--q-ink);opacity:.7}
+.q-lane{font-size:7.4px;font-weight:800;color:var(--q-ink);opacity:.75;letter-spacing:.04em;margin-top:2px}
+.q-sys{border-left:3px solid var(--q-accent)}
+.q-org{font-size:6.2px;font-weight:800;color:#fff;background:var(--q-accent);border-radius:4px;padding:1px 4px;flex-shrink:0}
+.q-chk{width:16px;height:16px;border-radius:50%;border:1.6px solid var(--q-line);background:var(--q-card);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:transparent;transition:all .15s}
+.q-row.done{opacity:.55}.q-row.done .t{text-decoration:line-through}
+.q-row.done .q-chk{background:var(--q-accent);border-color:var(--q-accent);color:#fff}
+.q-heat{display:flex;gap:2px}.q-heat s{width:8px;height:8px;border-radius:2px;background:var(--q-line)}.q-heat s.on{background:var(--q-accent)}
+.q-form-mini{background:var(--q-card);border:1.6px solid var(--q-line);border-radius:8px;padding:6px 8px;display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.q-form-mini .fld{height:14px;border:1.4px solid var(--q-line);border-radius:5px;background:#fff;font-size:6.5px;color:#b3a893;display:flex;align-items:center;padding:0 5px}
+.q-form-mini .sub{grid-column:1/-1;height:15px;border-radius:5px;background:var(--q-accent);color:#fff;font-size:7px;font-weight:700;display:flex;align-items:center;justify-content:center}
+/* 저장소 다이어그램 (축2) */
+.st-diag{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0;width:100%}
+.st-row{display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
+.dev{border:1.5px solid #ccc;border-radius:8px;background:#fff;padding:5px 10px;font-size:.72rem;font-weight:700;text-align:center;min-width:74px}
+.dev small{display:block;font-weight:400;font-size:.62rem;color:#999}
+.dev--dead{border-style:dashed;color:#bbb}.dev--dead small{color:#d66}
+.store{border:1.5px solid var(--accent);border-radius:8px;background:#EBF7FE;color:#0284C7;padding:5px 12px;font-size:.72rem;font-weight:800;text-align:center}
+.store--d1{border-color:#b9a8f0;background:#f4f0fe;color:#6b4fd8}
+.store--ls{border-color:#ddd;background:#f4f4f4;color:#888;font-weight:700}
+.st-link{font-size:.66rem;color:#999;font-family:var(--mono)}
+.st-note{font-size:.68rem;color:var(--muted);text-align:center}
+/* 오버월드 SVG (축3C) */
+.ow-wrap{position:relative}
+.ow-hud{position:absolute;top:32px;right:8px;background:rgba(255,255,255,.92);border:1px solid #EAEAEA;border-radius:999px;font-size:8px;font-weight:800;padding:2px 7px;color:#b3541e}
+.ow-slider{display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--muted);width:100%;justify-content:center;margin-top:2px}
+.ow-slider input{width:120px;accent-color:var(--q-accent)}
+.ow-slider b{font-family:var(--mono);font-size:.7rem;min-width:44px;color:var(--text)}
+/* 발주 카드 (축5) */
+.svc{width:250px;background:#fff;border:1px solid #EAEAEA;border-radius:10px;padding:10px 12px;font-size:10px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+.svc .hd{display:flex;align-items:center;gap:6px;font-weight:700;font-size:11px}
+.svc .hd .st{margin-left:auto;font-size:8px;font-weight:800;color:#b32828;background:#fdf1f1;border:1px solid #f4c1c1;border-radius:999px;padding:1px 7px}
+.svc .meta{font-size:8.5px;color:#999;margin:3px 0 8px}
+.svc .row{display:flex;gap:5px;align-items:center}
+.svc .lk{font-size:8.5px;color:#0284C7;border:1px solid #cfeafc;border-radius:5px;padding:2px 7px;background:#F5FBFF}
+.zap{margin-left:auto;width:26px;height:26px;border-radius:7px;border:1.5px solid #f3ddb1;background:#fff7e8;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.zap:hover{transform:scale(1.08);border-color:var(--warning)}
+.zap:disabled{opacity:.35;cursor:default;transform:none}
+.z-pop{margin-top:8px;border-top:1px dashed #EAEAEA;padding-top:8px;display:none;flex-direction:column;gap:6px}
+.z-pop.show{display:flex}
+.z-pop input{border:1px solid #EAEAEA;border-radius:6px;padding:5px 8px;font-size:9px;font-family:inherit;width:100%}
+.z-pop .bts{display:flex;gap:5px}
+.z-bt{flex:1;border:none;border-radius:6px;padding:5px 0;font-size:9px;font-weight:800;cursor:pointer}
+.z-bt--go{background:var(--warning);color:#fff}
+.z-bt--no{background:#f0f0f0;color:#666}
+.z-stat{margin-top:8px;border-radius:7px;padding:6px 8px;font-size:8.6px;font-weight:700;display:none;align-items:center;gap:6px}
+.z-stat.show{display:flex}
+.z-stat--wait{background:#fff7e8;border:1px solid #f3ddb1;color:#a06a10}
+.z-stat--ok{background:#f0fbf4;border:1px solid #b9e6ca;color:#0d7a3f}
+.z-undo{margin-left:auto;font-size:8px;color:#999;text-decoration:underline;cursor:pointer;background:none;border:none}
+.pulse{animation:pz 1.1s ease-in-out infinite}
+@keyframes pz{0%,100%{opacity:1}50%{opacity:.45}}
+.verbs{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.verb{font-size:8.5px;border:1px dashed #ddd;color:#aaa;border-radius:6px;padding:3px 8px}
+/* 탭바 (축6) */
+.tabbar{height:34px;background:#fff;border-top:1px solid #EAEAEA;display:flex;flex-shrink:0}
+.tb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:6.8px;font-weight:700;color:#999;cursor:pointer;user-select:none}
+.tb svg{width:13px;height:13px;stroke:#999;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tb.on{color:#0284C7}.tb.on svg{stroke:#0284C7}
+.tb .bdg{position:relative}
+.tb .bdg::after{content:'2';position:absolute;top:-4px;right:-8px;background:var(--error);color:#fff;font-size:6px;font-weight:800;border-radius:999px;padding:0 3px;min-width:10px;height:10px;line-height:10px}
+.sat{width:238px;background:#fff;border:1px dashed #bbb;border-radius:10px;padding:8px 10px;font-size:.72rem}
+.sat b{font-size:.72rem}
+.sat .lk-row{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.sat .lk2{font-family:var(--mono);font-size:.66rem;border:1px solid #cfeafc;background:#F5FBFF;color:#0284C7;border-radius:5px;padding:2px 7px}
+/* IA 다이어그램 (6C) */
+.ia{display:flex;flex-direction:column;gap:7px;align-items:center;width:100%;padding:4px 0}
+.ia-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.ia-box{border:1.5px solid #ccc;border-radius:8px;background:#fff;padding:5px 11px;font-size:.72rem;font-weight:700;text-align:center}
+.ia-box small{display:block;font-weight:400;font-size:.62rem;color:#999}
+.ia-box--front{border-color:var(--accent);background:#EBF7FE;color:#0284C7}
+.ia-box--merge{border-color:var(--q-accent);background:#fdf8ef;color:#8a5a1e}
+.ia-dead{text-decoration:line-through;color:#bbb;border-style:dashed}
+.ia-arrow{font-size:.7rem;color:#bbb}
+/* 미확정 ── */
+.open-q{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-top:6px}
+.open-q h2{font-size:.92rem;margin-bottom:8px}
+.open-q ul{margin-left:18px;font-size:.8rem;color:var(--muted)}
+.open-q li{margin-bottom:2px}
+.open-q li b{color:var(--text);font-family:var(--mono);font-size:.76rem}
+/* ── 하단 답장 바 ── */
+.ansbar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-top:1px solid var(--border);box-shadow:0 -3px 14px rgba(0,0,0,.06)}
+.ansbar__in{max-width:1180px;margin:0 auto;padding:10px 18px 12px;display:flex;flex-direction:column;gap:7px}
+.warns{display:flex;flex-direction:column;gap:3px}
+.warn{font-size:.73rem;padding:3px 10px;border-radius:6px;display:none}
+.warn.show{display:block}
+.warn--stop{background:#fdf1f1;border:1px solid #f4c1c1;color:#b32828}
+.warn--info{background:#fff7e8;border:1px solid #f3ddb1;color:#a06a10}
+.ansrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.anslabel{font-size:.78rem;font-weight:700;color:var(--muted);flex-shrink:0}
+.ansline{flex:1;min-width:180px;font-family:var(--mono);font-size:.92rem;font-weight:700;letter-spacing:.03em;background:var(--surface-hover);border:1px solid var(--border);border-radius:8px;padding:7px 13px;color:var(--dim)}
+.ansline.ready{color:var(--text);border-color:var(--accent)}
+@media(max-width:520px){.ph{width:100%;max-width:238px}.ansline{font-size:.8rem}body{padding-bottom:220px}}
+</style>
+</head>
+<body>
+
+<header class="ghead">
+  <div class="ghead__in">
+    <div class="glogo"><svg viewBox="0 0 32 32" fill="none"><path d="M8 16L14 10L20 16L14 22Z" fill="#fff" opacity=".9"/><path d="M14 16L20 10L26 16L20 22Z" fill="#fff" opacity=".6"/></svg></div>
+    <h1>jacehub 리모델링 — 결정 게이트</h1>
+    <span class="sub">2026-07-19 · 앱기획팀 · 축 6개 × 카드 선택</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══ 3분 요약 ═══ -->
+<section class="brief">
+  <h2>3분 요약 — 양 파(정합·모험)의 진단이 겹친 세 지점</h2>
+  <ol>
+    <li><b>로비의 localStorage 인질</b> — 폰 새 브라우저에서 로비가 빈 화면. 매일 쓰는 방이 가장 무거운 부트스트랩을 요구한다. → <b>축 2</b></li>
+    <li><b>퀘스트 방의 빈약함</b> — 리텐션 엔진인데 세 방 중 가장 초라함(CSS 63줄, 편집 UI 없음). → <b>축 4</b></li>
+    <li><b>데일리 루프의 단절</b> — ingest 배관은 완성됐는데 결과가 quests.html에만 고립. → <b>축 1·3</b></li>
+  </ol>
+  <div class="pins">
+    <span class="pin pin--safe">전 선택지 공통 안전핀: VAULT·DB 바인딩 유지 · ingest 계약 유지 · 기존 데이터 무변경</span>
+    <span class="pin">추천 조합 = 본선(2B→3B+4A→6A) + 별동 파일럿(1B·4B·5B)</span>
+  </div>
+  <div class="howto">
+    <span>카드를 눌러 고르면 아래에 답장 한 줄이 완성된다. 예: <code>1B 2B 3B 4C 5B 6A</code></span>
+    <button class="btn" id="btn-rec">추천 조합 채우기</button>
+  </div>
+</section>
+
+<!-- ═══ 축 1 — 정문 ═══ -->
+<section class="axis" id="axis-1">
+  <div class="axis__head"><span class="axis__num">축 1</span><h2>정문 — 첫 진입 화면이 보여주는 것</h2></div>
+  <p class="axis__q">매일 처음 여는 화면이 전체 재고표인가, 변화량인가. (1C 목업의 Today/격납고 탭은 실제로 눌러볼 수 있다)</p>
+  <div class="opts">
+
+    <div class="opt" data-axis="1" data-code="1A">
+      <div class="opt__top"><span class="opt__code">1A</span><span class="opt__name">현행 + 복원</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph">
+          <div class="ph-top"><div class="ph-logo"></div><span class="ph-title">JaceHub</span><span class="r">로비 · 퀘스트 · ⟳</span></div>
+          <div class="ph-body">
+            <div class="m-stats">
+              <div class="m-stat"><b>23</b><span>전체</span></div>
+              <div class="m-stat"><b>2</b><span>주의</span></div>
+              <div class="m-stat"><b>17</b><span>활성</span></div>
+              <div class="m-stat"><b>9</b><span>도메인</span></div>
+            </div>
+            <div class="m-radar">
+              <div class="eb">EXPERIMENTAL RADAR</div>
+              <div class="tt">배포 우선순위를 먼저 확인하세요</div>
+              <div class="mm">즉시 확인 2 · 정체 5 · 신선 11</div>
+            </div>
+            <div class="m-grid">
+              <div class="m-card"><div class="nm"><i class="dot dot--e"></i>youtubewc</div><div class="sb">prod · 실패 · 3h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>kyou</div><div class="sb">prod · 2h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>fateweaver</div><div class="sb">prod · 1d</div></div>
+              <div class="m-card"><div class="nm"><i class="dot dot--w"></i>warren</div><div class="sb">tunnel · 7d 조용</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>jacemaster</div><div class="sb">prod · 2d</div></div>
+              <div class="m-card"><div class="nm"><i class="dot dot--g"></i>blurryjourney</div><div class="sb">14d 정체</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>crossbell</div><div class="sb">prod · 5h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>ccwatch</div><div class="sb">tunnel · ok</div></div>
+            </div>
+          </div>
+        </div>
+        <span class="mock__cap">전수 그리드 그대로 — 마지막 방문 방 복원만 추가</span>
+      </div>
+      <p class="opt__desc">관리 대시보드가 정문. 루트 진입 시 마지막 방문 방을 기억해 복원.</p>
+      <p class="opt__trade"><b>대가:</b> "매일 같은 벽지" 문제 존치 — 1인용에게 전수 그리드는 정보가 아니라 벽지.</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 낮음</span><span class="chip">출처: 정합1 일부</span></div>
+    </div>
+
+    <div class="opt" data-axis="1" data-code="1B">
+      <div class="opt__top"><span class="opt__code">1B</span><span class="opt__name">Today 스트립</span><span class="badge badge--rec">추천</span><span class="badge badge--exp">파일럿 1주</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph">
+          <div class="ph-top"><div class="ph-logo"></div><span class="ph-title">JaceHub</span><span class="r">로비 · 퀘스트 · ⟳</span></div>
+          <div class="ph-body">
+            <div class="m-strip">
+              <div class="hd">TODAY — 어제 이후</div>
+              <div class="feed">
+                <i><b class="dot dot--e"></b>youtubewc 배포 실패 전환<span class="tm">3h</span></i>
+                <i><b class="dot"></b>kyou 새 배포<span class="tm">2h</span></i>
+                <i><b class="dot dot--w"></b>warren stale 진입<span class="tm">7d</span></i>
+              </div>
+              <div class="m-qsum">오늘 퀘스트 2/5 · 스트릭 4일</div>
+            </div>
+            <div class="m-stats">
+              <div class="m-stat"><b>23</b><span>전체</span></div>
+              <div class="m-stat"><b>2</b><span>주의</span></div>
+              <div class="m-stat"><b>17</b><span>활성</span></div>
+              <div class="m-stat"><b>9</b><span>도메인</span></div>
+            </div>
+            <div class="m-grid">
+              <div class="m-card"><div class="nm"><i class="dot dot--e"></i>youtubewc</div><div class="sb">prod · 실패 · 3h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>kyou</div><div class="sb">prod · 2h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>fateweaver</div><div class="sb">prod · 1d</div></div>
+              <div class="m-card"><div class="nm"><i class="dot dot--w"></i>warren</div><div class="sb">tunnel · 7d</div></div>
+            </div>
+          </div>
+        </div>
+        <span class="mock__cap">index 상단에 스트립 삽입 — 그리드는 아래 유지</span>
+      </div>
+      <p class="opt__desc">index 상단에 "어제 이후 바뀐 것 + 오늘 퀘스트 요약" 스트립. 현행 radar 신호(클라 계산)만으로 즉시 가능.</p>
+      <p class="opt__trade"><b>대가:</b> 한 화면이 길어짐. 진짜 "어제 이후" diff는 서버 이력(2C) 필요 — 그 전까지는 radar 근사치.</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 낮음</span><span class="chip">출처: 교배(모험1 축소 이식)</span></div>
+    </div>
+
+    <div class="opt" data-axis="1" data-code="1C">
+      <div class="opt__top"><span class="opt__code">1C</span><span class="opt__name">Today 정문</span><span class="badge badge--hold">2라운드 보류 권장</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph">
+          <div class="ph-top"><div class="ph-logo"></div><span class="ph-title">JaceHub</span><span class="r">⟳</span></div>
+          <div class="ph-tabs">
+            <div class="ph-tab on" data-t1c="today">Today</div>
+            <div class="ph-tab" data-t1c="hangar">격납고</div>
+          </div>
+          <div class="ph-body" id="t1c-today">
+            <div class="m-strip" style="border-left-color:#EE0000">
+              <div class="hd" style="color:#b32828">판단 필요</div>
+              <div class="feed"><i><b class="dot dot--e"></b>youtubewc 배포 실패 전환<span class="tm">3h</span></i></div>
+            </div>
+            <div class="m-strip">
+              <div class="hd">어제 이후</div>
+              <div class="feed">
+                <i><b class="dot"></b>kyou 새 배포<span class="tm">2h</span></i>
+                <i><b class="dot dot--w"></b>warren stale 진입<span class="tm">7d</span></i>
+                <i><b class="dot"></b>crossbell 새 배포<span class="tm">5h</span></i>
+              </div>
+            </div>
+            <div class="m-strip" style="border-left-color:#17C964">
+              <div class="hd" style="color:#0d7a3f">오늘의 퀘스트 2/5</div>
+              <div class="feed">
+                <i>rituall 아침 의식 ✓ · 저녁 의식 —</i>
+                <i>le 학습 1건 — · 스트릭 4일</i>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:7.5px;color:#999;font-weight:700;margin-bottom:4px">즐겨찾기</div>
+              <div style="display:flex;gap:6px">
+                <div class="l-ico" style="width:30px;height:30px;border-radius:8px;font-size:10px;background:linear-gradient(135deg,#0EA5E9,#0284C7)">J</div>
+                <div class="l-ico" style="width:30px;height:30px;border-radius:8px;font-size:10px;background:linear-gradient(135deg,#F5A623,#e08e0b)">R</div>
+                <div class="l-ico" style="width:30px;height:30px;border-radius:8px;font-size:10px;background:linear-gradient(135deg,#17C964,#0d9e4b)">W</div>
+                <div class="l-ico" style="width:30px;height:30px;border-radius:8px;font-size:10px;background:linear-gradient(135deg,#8b5cf6,#6d28d9)">K</div>
+                <div class="l-ico" style="width:30px;height:30px;border-radius:8px;font-size:10px;background:linear-gradient(135deg,#f43f5e,#be123c)">F</div>
+              </div>
+            </div>
+          </div>
+          <div class="ph-body" id="t1c-hangar" style="display:none">
+            <div style="display:flex;gap:4px">
+              <span style="font-size:7px;border:1px solid #EAEAEA;border-radius:999px;padding:1px 7px;background:#fff;font-weight:700;color:#0284C7">전체 23</span>
+              <span style="font-size:7px;border:1px solid #EAEAEA;border-radius:999px;padding:1px 7px;background:#fff;color:#999">CF</span>
+              <span style="font-size:7px;border:1px solid #EAEAEA;border-radius:999px;padding:1px 7px;background:#fff;color:#999">Vercel</span>
+              <span style="font-size:7px;border:1px solid #EAEAEA;border-radius:999px;padding:1px 7px;background:#fff;color:#999">CSV ↓</span>
+            </div>
+            <div class="m-grid">
+              <div class="m-card"><div class="nm"><i class="dot dot--e"></i>youtubewc</div><div class="sb">prod · 실패</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>kyou</div><div class="sb">prod · 2h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>fateweaver</div><div class="sb">prod · 1d</div></div>
+              <div class="m-card"><div class="nm"><i class="dot dot--w"></i>warren</div><div class="sb">tunnel · 7d</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>jacemaster</div><div class="sb">prod · 2d</div></div>
+              <div class="m-card"><div class="nm"><i class="dot dot--g"></i>blurryjourney</div><div class="sb">14d 정체</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>crossbell</div><div class="sb">prod · 5h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>ccwatch</div><div class="sb">tunnel · ok</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>jacewiki</div><div class="sb">prod · 3d</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>rituall</div><div class="sb">prod · 1d</div></div>
+            </div>
+          </div>
+        </div>
+        <span class="mock__cap">탭을 눌러보라 — Today가 정문, 전수 그리드는 격납고로 강등</span>
+      </div>
+      <p class="opt__desc">today.html이 정문. diff 피드 + 퀘스트 요약 + 즐겨찾기 한 줄. 격납고는 한 겹 뒤로.</p>
+      <p class="opt__trade"><b>대가:</b> 정보 밀도를 원할 땐 한 겹 더. <b>전제: 2C(D1 스냅샷 이력) 필요.</b> 동선 재학습 2회 발생 위험 — 1B 파일럿 지표를 본 뒤가 안전.</p>
+      <div class="chips"><span class="chip chip--mid">되돌리기 중간</span><span class="chip">출처: 모험1</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 축 2 — 상태의 집 ═══ -->
+<section class="axis" id="axis-2">
+  <div class="axis__head"><span class="axis__num">축 2</span><h2>상태의 집 — 스냅샷·메타의 저장 위치 (기기 독립화)</h2></div>
+  <p class="axis__q">폰 새 브라우저에서 로비가 빈 화면인 문제를 어디까지 풀 것인가.</p>
+  <div class="axis__note"><b>전 조합의 공통 토대</b> — 축 1·3·4의 모험 쪽 선택지 전부와 정합 배지안(3B)까지 이 축 위에 선다. 어떤 조합이든 2B 이상을 첫 스프린트에 포함할 것(양 파 합의점). 보안 전제: 스냅샷에 내부 도메인(warren 등)이 실리므로 <b>PIN 뒤 읽기 유지</b> — 공개 read로 낮추지 말 것.</div>
+  <div class="opts">
+
+    <div class="opt" data-axis="2" data-code="2A">
+      <div class="opt__top"><span class="opt__code">2A</span><span class="opt__name">현행 유지</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="st-diag">
+          <div class="st-row">
+            <div class="dev">PC<small>대시보드가 먼저 돌아야 생성</small></div>
+            <div class="dev dev--dead">폰 새 브라우저<small>로비 빈 화면</small></div>
+          </div>
+          <div class="st-link">↓ 기기별 각자</div>
+          <div class="st-row"><div class="store store--ls">localStorage 전용</div></div>
+          <div class="st-note">스냅샷·메타·PIN 전부 기기 종속 — "폰+PC 겸용" 약속 위반 존치</div>
+        </div>
+        <span class="mock__cap">로비가 관제탑에 인질로 잡힌 현재 구조</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 인질 문제 존치. 다른 축의 선택지 대부분이 이 위에 못 선다.</p>
+      <div class="chips"><span class="chip chip--low">비용 0</span><span class="chip">출처: 현행</span></div>
+    </div>
+
+    <div class="opt" data-axis="2" data-code="2B">
+      <div class="opt__top"><span class="opt__code">2B</span><span class="opt__name">KV 봉투 승격</span><span class="badge badge--rec">추천 · 첫 스프린트</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="st-diag">
+          <div class="st-row">
+            <div class="dev">PC<small>어디서나 같은 상태</small></div>
+            <div class="dev">폰<small>PIN만 풀면 즉시</small></div>
+          </div>
+          <div class="st-link">↕ sync (syncFavoritesToVault 패턴의 연장)</div>
+          <div class="st-row"><div class="store">볼트 KV 봉투 (PIN 뒤)<br><span style="font-weight:400;font-size:.64rem">favorites 옆에 스냅샷·메타 추가</span></div></div>
+          <div class="st-link">↓ 강등</div>
+          <div class="st-row"><div class="store store--ls">localStorage = 오프라인 캐시</div></div>
+        </div>
+        <span class="mock__cap">새 개념 제로 — 봉투에 필드 추가일 뿐, 바인딩 무변경</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 거의 없음. 되돌리기는 봉투 필드 무시하면 끝(~0).</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 ~0</span><span class="chip">출처: 정합2</span></div>
+    </div>
+
+    <div class="opt" data-axis="2" data-code="2C">
+      <div class="opt__top"><span class="opt__code">2C</span><span class="opt__name">2B + D1 스냅샷 이력</span><span class="badge badge--hold">1C·3C 갈 때 필요</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="st-diag">
+          <div class="st-row"><div class="store">볼트 KV 봉투 (= 2B)</div></div>
+          <div class="st-link">+ additive 테이블 신설</div>
+          <div class="st-row"><div class="store store--d1">D1 일일 스냅샷 이력<br><span style="font-weight:400;font-size:.64rem">어제 vs 오늘 diff의 원재료</span></div></div>
+          <div class="st-link">↓ 공급</div>
+          <div class="st-note">1C Today diff 피드 · 3C 건물 노화 · "진짜 어제 이후"가 여기서 나온다</div>
+        </div>
+        <span class="mock__cap">모험안들의 숨은 서버 요건을 명시화한 것</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 테이블 신설(additive, 기존 데이터 무변경)이지만 적재 트리거 미확정(cron vs 방문 시). 되돌리기는 테이블 방치로 소(小).</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 소</span><span class="chip">출처: 모험1 요건 명시화</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 축 3 — 데일리 루프 노출 ═══ -->
+<section class="axis" id="axis-3">
+  <div class="axis__head"><span class="axis__num">축 3</span><h2>데일리 루프의 노출 지점</h2></div>
+  <p class="axis__q">"어느 앱을 열까" 고르는 순간에 퀘스트 상태가 보이는가. (3B의 배지 토글, 3C의 방치 슬라이더를 만져보라)</p>
+  <div class="axis__note"><b>3B와 3C는 택일이 아니다</b> — 3B는 본선에 지금, 3C는 별동 overworld.html(백엔드 무변경 실험)로 병행 가능. 두 카드를 동시에 선택할 수 있다.</div>
+  <div class="opts">
+
+    <div class="opt" data-axis="3" data-code="3A">
+      <div class="opt__top"><span class="opt__code">3A</span><span class="opt__name">현행 — 퀘스트 방에만</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph ph--beige" style="height:300px">
+          <div class="ph-top"><span style="color:var(--q-accent);font-weight:800;font-size:8.5px">← 허브</span><span class="ph-title" style="color:var(--q-ink)">오늘의 퀘스트</span><span class="r" style="color:var(--q-ink);font-weight:800">2 / 5</span></div>
+          <div class="ph-body">
+            <div class="q-row done"><span class="q-chk">✓</span><span class="t">매일 아침 의식</span><span class="q-bar"><i style="width:100%"></i></span><span class="q-num">1/1</span></div>
+            <div class="q-row"><span class="q-chk"></span><span class="t">저녁 의식</span><span class="q-bar"><i style="width:0"></i></span><span class="q-num">0/1</span></div>
+            <div class="q-row"><span class="q-chk"></span><span class="t">학습 1건 등록</span><span class="q-bar"><i style="width:0"></i></span><span class="q-num">0/1</span></div>
+            <div style="margin-top:2px"><div class="q-lane">스트릭 4일</div><div class="q-heat"><s class="on"></s><s class="on"></s><s></s><s class="on"></s><s class="on"></s><s class="on"></s><s class="on"></s></div></div>
+          </div>
+        </div>
+        <span class="mock__cap">퀘스트 상태는 quests.html을 열어야만 보인다</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 루프 단절 존치 — 결정의 순간(로비)에 동기 신호가 없다.</p>
+      <div class="chips"><span class="chip chip--low">비용 0</span><span class="chip">출처: 현행</span></div>
+    </div>
+
+    <div class="opt" data-axis="3" data-code="3B">
+      <div class="opt__top"><span class="opt__code">3B</span><span class="opt__name">로비 타일 배지</span><span class="badge badge--rec">추천 · 본선</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph">
+          <div class="ph-top"><div class="ph-logo"></div><span class="ph-title">Lobby</span><span class="r">관리</span></div>
+          <div class="ph-body">
+            <div class="l-hero">Apps</div>
+            <div class="l-sub">제이스가 만든 작은 앱들이에요</div>
+            <div class="m-toggle">배지 표시 <span class="sw" id="sw3b"></span></div>
+            <div class="l-grid">
+              <div class="l-tile"><span class="l-badge b3">2</span><div class="l-ico" style="background:linear-gradient(135deg,#F5A623,#e08e0b)">R</div><span class="l-nm">rituall</span></div>
+              <div class="l-tile"><div class="l-ico" style="background:linear-gradient(135deg,#0EA5E9,#0284C7)">J</div><span class="l-nm">jacemaster</span></div>
+              <div class="l-tile"><span class="l-badge b3">1</span><div class="l-ico" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">L</div><span class="l-nm">le</span></div>
+              <div class="l-tile"><div class="l-ico" style="background:linear-gradient(135deg,#17C964,#0d9e4b)">W</div><span class="l-nm">warren</span></div>
+              <div class="l-tile"><div class="l-ico" style="background:linear-gradient(135deg,#f43f5e,#be123c)">K</div><span class="l-nm">kyou</span></div>
+              <div class="l-tile"><div class="l-ico" style="background:linear-gradient(135deg,#64748b,#334155)">C</div><span class="l-nm">ccwatch</span></div>
+            </div>
+            <div class="l-cheer">전부 완료하면 배지가 사라지고 이 줄만 — 오늘 올클리어</div>
+          </div>
+        </div>
+        <span class="mock__cap">iOS 배지 규약 그대로 — 미완일 때만, 토글로 방어 (스위치를 눌러보라)</span>
+      </div>
+      <p class="opt__desc">로비(+index 퀵 로비)의 앱 타일에 미완 퀘스트 수 배지. GET /api/progress 1회로 계산.</p>
+      <p class="opt__trade"><b>대가:</b> 학습 비용 0이나 회귀 신호가 약함. 배지 압박은 소극적 표기+설정 토글로 방어.</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 낮음</span><span class="chip">출처: 정합3</span></div>
+    </div>
+
+    <div class="opt" data-axis="3" data-code="3C">
+      <div class="opt__top"><span class="opt__code">3C</span><span class="opt__name">오버월드 리스킨</span><span class="badge badge--exp">별동 실험 경유 필수</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph ow-wrap">
+          <div class="ph-top"><div class="ph-logo"></div><span class="ph-title">Overworld</span><span class="r">quests · lobby 통합</span></div>
+          <div class="ow-hud">스트릭 버프 x4</div>
+          <svg viewBox="0 0 238 320" style="display:block;width:100%;flex:1" role="img" aria-label="마을 오버월드 목업">
+            <rect width="238" height="320" fill="#dcefd8"/>
+            <rect y="250" width="238" height="70" fill="#cfe6c8"/>
+            <path d="M0 258 Q60 250 119 258 T238 256" stroke="#b9d8b0" stroke-width="10" fill="none"/>
+            <!-- 게시판 -->
+            <g transform="translate(96,196)">
+              <rect x="14" y="26" width="5" height="18" fill="#8a6a45"/><rect x="30" y="26" width="5" height="18" fill="#8a6a45"/>
+              <rect x="4" y="2" width="42" height="26" rx="3" fill="#a8845c" stroke="#7d5f3e" stroke-width="1.5"/>
+              <rect x="8" y="6" width="34" height="4" rx="1" fill="#f3e7d2"/>
+              <rect x="8" y="12" width="26" height="3" rx="1" fill="#f3e7d2" opacity=".8"/>
+              <rect x="8" y="17" width="30" height="3" rx="1" fill="#f3e7d2" opacity=".6"/>
+              <text x="25" y="56" font-size="7.5" text-anchor="middle" fill="#4a3f35" font-weight="700">퀘스트 게시판 3</text>
+            </g>
+            <!-- 건강 건물: rituall -->
+            <g transform="translate(18,120)">
+              <rect x="2" y="22" width="52" height="42" rx="2" fill="#f5d9a8" stroke="#c9a86a" stroke-width="1.5"/>
+              <path d="M-2 24 L28 2 L58 24 Z" fill="#c98a3b"/>
+              <rect x="12" y="36" width="12" height="12" fill="#fffdf8" stroke="#c9a86a"/>
+              <rect x="32" y="36" width="12" height="12" fill="#fffdf8" stroke="#c9a86a"/>
+              <rect x="22" y="50" width="12" height="14" fill="#8a6a45"/>
+              <text x="28" y="78" font-size="7.5" text-anchor="middle" fill="#4a3f35" font-weight="700">rituall · Lv.5</text>
+            </g>
+            <!-- 노화 건물: blurryjourney (슬라이더 바인딩) -->
+            <g id="ow-old" transform="translate(158,116)">
+              <g id="ow-bldg">
+                <rect x="2" y="26" width="50" height="42" rx="2" fill="#e8d9c0" stroke="#b3a28a" stroke-width="1.5"/>
+                <path d="M-2 28 L27 6 L56 28 Z" fill="#a98f6e"/>
+                <rect x="11" y="40" width="11" height="11" fill="#f5efe3" stroke="#b3a28a"/>
+                <rect x="30" y="40" width="11" height="11" fill="#f5efe3" stroke="#b3a28a"/>
+                <rect x="21" y="54" width="12" height="14" fill="#7d6a52"/>
+              </g>
+              <g id="ow-cracks" stroke="#6d5c47" stroke-width="1.1" fill="none" opacity="0">
+                <path d="M8 30 l6 8 l-3 7 l5 6"/>
+                <path d="M46 34 l-5 9 l3 6"/>
+                <path d="M14 44 l4 3"/>
+              </g>
+              <g id="ow-weeds" opacity="0">
+                <path d="M4 68 q2 -8 4 0 q2 -6 4 0 q2 -8 4 0" fill="#7fae6d"/>
+                <path d="M38 68 q2 -9 4 0 q2 -6 4 0 q2 -8 4 0" fill="#7fae6d"/>
+                <path d="M20 68 q2 -6 4 0" fill="#94c283"/>
+              </g>
+              <text id="ow-label" x="27" y="82" font-size="7.5" text-anchor="middle" fill="#4a3f35" font-weight="700">blurryjourney · Lv.3</text>
+            </g>
+            <!-- 작은 집: kyou -->
+            <g transform="translate(92,84)">
+              <rect x="2" y="16" width="38" height="30" rx="2" fill="#f0e2c8" stroke="#c9a86a" stroke-width="1.4"/>
+              <path d="M-2 18 L21 2 L44 18 Z" fill="#d8a35a"/>
+              <rect x="15" y="26" width="10" height="20" fill="#8a6a45"/>
+              <text x="21" y="58" font-size="7.5" text-anchor="middle" fill="#4a3f35" font-weight="700">kyou · Lv.4</text>
+            </g>
+            <text x="119" y="300" font-size="8" text-anchor="middle" fill="#6b5f50">ingest 이벤트 = 경험치 · stale = 잡초와 금 간 벽</text>
+          </svg>
+        </div>
+        <div class="ow-slider">방치 일수 <input type="range" id="ow-range" min="0" max="30" value="0"> <b id="ow-days">D+0</b></div>
+        <span class="mock__cap">슬라이더를 끌면 방치된 건물이 낡아간다 — radar stale의 시각 번역</span>
+      </div>
+      <p class="opt__desc">lobby+quests를 마을 화면으로. 앱=건물(배포 이력=레벨), 퀘스트=게시판, 스트릭=버프.</p>
+      <p class="opt__trade"><b>대가:</b> 회귀 신호가 가장 강하고 사용자의 모국어(게임 은유)지만 에셋 제작·유지 비용 큼. 정식 채택은 6C와 세트 — 반드시 별동 실험(Wizard of Oz, 백엔드 무변경) 경유.</p>
+      <div class="chips"><span class="chip chip--low">실험이면 화면 1장</span><span class="chip chip--high">정식 채택은 높음</span><span class="chip">출처: 모험2</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 축 4 — 퀘스트 발행 주체 ═══ -->
+<section class="axis" id="axis-4">
+  <div class="axis__head"><span class="axis__num">축 4</span><h2>퀘스트 발행 주체 — 내가 쓰나, 함대가 내나</h2></div>
+  <p class="axis__q">습관 퀘스트의 품질을 회수할 것인가, 시스템 발행 레인을 얹을 것인가, 둘 다인가. (4B 목업의 원탭 클리어를 눌러보라)</p>
+  <div class="opts">
+
+    <div class="opt" data-axis="4" data-code="4A">
+      <div class="opt__top"><span class="opt__code">4A</span><span class="opt__name">습관 퀘스트 품질 회수</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select" style="align-items:stretch">
+        <div style="background:#fff;border:1px solid #EAEAEA;border-radius:9px;padding:10px 13px;font-size:.78rem;display:flex;flex-direction:column;gap:5px">
+          <div style="font-weight:700;font-size:.8rem;margin-bottom:2px">1차 범위 체크리스트 (전부 "빈 방 채우기")</div>
+          <div>· style.css 디자인 토큰·헤더 승계 <span style="color:#999;font-size:.68rem">(현재 자체 63줄 CSS 고립)</span></div>
+          <div>· 퀘스트 편집 UI <span style="color:#0d7a3f;font-size:.68rem">(PUT /api/quests 이미 존재 — UI만 없음)</span></div>
+          <div>· 전부 클리어 축하 <span style="color:#999;font-size:.68rem">(spec 약속 미구현)</span></div>
+          <div>· EVENT_CATALOG 하드코딩 → D1 실데이터 <span style="color:#999;font-size:.68rem">(행동 드롭다운이 연동 확산 따라 자동 성장)</span></div>
+          <div style="border-top:1px dashed #EAEAEA;padding-top:5px;color:#999;font-size:.7rem">2라운드로 미룸: 스트릭 최고기록 · 월별 통계</div>
+        </div>
+        <span class="mock__cap">화면 차이가 작아 목업 불필요 — 범위 체크로 결정</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 확실하지만 동기 부여 구조는 그대로.</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 낮음</span><span class="chip">출처: 정합4</span></div>
+    </div>
+
+    <div class="opt" data-axis="4" data-code="4B">
+      <div class="opt__top"><span class="opt__code">4B</span><span class="opt__name">함대 퀘스트 레인</span><span class="badge badge--exp">컨시어지 MVP 1주</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph ph--beige" style="height:360px">
+          <div class="ph-top"><span style="color:var(--q-accent);font-weight:800;font-size:8.5px">← 허브</span><span class="ph-title" style="color:var(--q-ink)">아침 미션 브리핑</span><span class="r" style="color:var(--q-ink);font-weight:800">1 / 6</span></div>
+          <div class="ph-body">
+            <div class="q-lane">함대 발행 — 오늘 3건 (radar 신호)</div>
+            <div class="q-row q-sys f4b"><span class="q-chk"></span><span class="t">youtubewc 배포 실패 — 원인 확인</span><span class="q-org">함대</span></div>
+            <div class="q-row q-sys f4b"><span class="q-chk"></span><span class="t">warren 7일 조용 — 한 번 열어보기</span><span class="q-org">함대</span></div>
+            <div class="q-row q-sys f4b"><span class="q-chk"></span><span class="t">blurryjourney 14일 정체 — 손보기</span><span class="q-org">함대</span></div>
+            <div style="font-size:6.8px;color:#8a7a64;margin-top:-2px">클리어 = ingest 자동(배포 이벤트) 또는 원탭 체크</div>
+            <div class="q-lane" style="margin-top:6px">습관 — 내가 등록</div>
+            <div class="q-row done"><span class="q-chk">✓</span><span class="t">매일 아침 의식</span><span class="q-bar"><i style="width:100%"></i></span></div>
+            <div class="q-row f4b"><span class="q-chk"></span><span class="t">저녁 의식</span><span class="q-bar"><i style="width:0"></i></span></div>
+            <div class="q-row f4b"><span class="q-chk"></span><span class="t">학습 1건 등록</span><span class="q-bar"><i style="width:0"></i></span></div>
+          </div>
+        </div>
+        <span class="mock__cap">함대 카드의 체크를 눌러보라 — 매일 아침 최대 3건 자동 발행</span>
+      </div>
+      <p class="opt__desc">radar 신호 → 매일 최대 3개 시스템 발행. 입력자=수혜자인 1인 도구에서 입력 폼은 낭비라는 반전.</p>
+      <p class="opt__trade"><b>대가:</b> 발행 규칙 설계 필요. 컨시어지 MVP(스크립트가 D1에 INSERT)는 서버 코드 0줄·스키마 무변경, 정식화 시 quests에 origin 컬럼 additive ALTER(무손실).</p>
+      <div class="chips"><span class="chip chip--low">MVP 되돌리기 0</span><span class="chip">출처: 모험4</span></div>
+    </div>
+
+    <div class="opt" data-axis="4" data-code="4C">
+      <div class="opt__top"><span class="opt__code">4C</span><span class="opt__name">병행 (4A + 4B)</span><span class="badge badge--rec">추천</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select" style="align-items:stretch">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;background:#fff;border:1px solid #EAEAEA;border-radius:9px;padding:9px 11px;font-size:.72rem">
+            <div style="font-weight:800;color:#0284C7;font-size:.7rem;margin-bottom:3px">본선 — 4A</div>
+            습관 레인 품질 회수<br><span style="color:#999;font-size:.66rem">토큰 승계 · 편집 UI · 축하 · 카탈로그 D1화</span>
+          </div>
+          <div style="flex:1;background:#fdf8ef;border:1px solid #f3ddb1;border-radius:9px;padding:9px 11px;font-size:.72rem">
+            <div style="font-weight:800;color:#a06a10;font-size:.7rem;margin-bottom:3px">별동 — 4B MVP</div>
+            함대 레인 1주 계측<br><span style="color:#8a7a64;font-size:.66rem">클리어율 ≥ 습관이면 정식화</span>
+          </div>
+        </div>
+        <div class="st-note" style="margin-top:2px">상호 배타가 아니다 — 같은 방의 두 레인. 판정 지표: 함대 퀘스트 클리어율 ≥ 습관 퀘스트 클리어율</div>
+        <span class="mock__cap">두 레인이 나란히 서는 그림은 4B 목업 그대로</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 4A의 확실함 + 4B의 검증을 동시에. 추가 비용은 MVP 스크립트 하나.</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 낮음</span><span class="chip">출처: 교배</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 축 5 — 허브의 동사 ═══ -->
+<section class="axis" id="axis-5">
+  <div class="axis__head"><span class="axis__num">축 5</span><h2>허브의 동사 — 읽기 전용 vs 발주</h2></div>
+  <p class="axis__q">문제를 발견한 카드에서 해결 발주까지 이어지는가. (5B 목업의 번개 버튼으로 발주 흐름을 끝까지 눌러보라)</p>
+  <div class="opts">
+
+    <div class="opt" data-axis="5" data-code="5A">
+      <div class="opt__top"><span class="opt__code">5A</span><span class="opt__name">읽기 전용 유지</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="svc">
+          <div class="hd"><i class="dot dot--e" style="width:7px;height:7px"></i>youtubewc<span class="st">배포 실패</span></div>
+          <div class="meta">Workers · 마지막 배포 3h 전 · main</div>
+          <div class="row"><span class="lk">열기 ↗</span><span class="lk">CF 대시보드 ↗</span></div>
+        </div>
+        <span class="mock__cap">보는 것까지 — 조치는 지금처럼 터미널에서</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> "관제탑" 이름값 미달 존치. 발견과 해결의 자리가 계속 분리.</p>
+      <div class="chips"><span class="chip chip--low">비용 0</span><span class="chip">출처: 현행</span></div>
+    </div>
+
+    <div class="opt" data-axis="5" data-code="5B">
+      <div class="opt__top"><span class="opt__code">5B</span><span class="opt__name">번개 파일럿 — 카드 1장</span><span class="badge badge--rec">추천</span><span class="badge badge--exp">1주 계측</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="svc" id="z-card">
+          <div class="hd"><i class="dot dot--e" style="width:7px;height:7px"></i>youtubewc<span class="st">배포 실패</span></div>
+          <div class="meta">Workers · 마지막 배포 3h 전 · main</div>
+          <div class="row"><span class="lk">열기 ↗</span><span class="lk">CF 대시보드 ↗</span><button class="zap" id="z-btn" title="에이전트에게 발주">⚡</button></div>
+          <div class="z-pop" id="z-pop">
+            <div style="font-size:8.5px;font-weight:700;color:#a06a10">crossbell로 발주 — 오발주 방지 확인 스텝</div>
+            <input id="z-input" value="배포 실패 원인 봐줘" spellcheck="false">
+            <div class="bts">
+              <button class="z-bt z-bt--go" id="z-go">발주</button>
+              <button class="z-bt z-bt--no" id="z-no">취소</button>
+            </div>
+          </div>
+          <div class="z-stat z-stat--wait" id="z-wait"><span class="pulse">⚡ 발주됨 — crossbell 웹훅 전송, 에이전트 대기중</span><button class="z-undo" id="z-undo">언두</button></div>
+          <div class="z-stat z-stat--ok" id="z-ok">에이전트 접수 — 처리 결과는 카드 배지로 회신</div>
+        </div>
+        <span class="mock__cap">기존 crossbell 깨우기 인프라 재사용, 약 20줄 패치</span>
+      </div>
+      <p class="opt__desc">카드 1장에만 발주 버튼. 누른 횟수·발주 후 실제 처리 완료율을 1주 계측.</p>
+      <p class="opt__trade"><b>대가:</b> 비용 대비 레버리지 최대의 실험. 미확정: 오발주 방지 UX(확인 스텝·언두 — 위 목업이 시안), 발주 후 상태 피드백 채널. 되돌리기는 버튼 제거(단, 이미 발주된 작업 잔여 처리).</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 낮음</span><span class="chip">출처: 모험3 최소검증</span></div>
+    </div>
+
+    <div class="opt" data-axis="5" data-code="5C">
+      <div class="opt__top"><span class="opt__code">5C</span><span class="opt__name">동사 확장</span><span class="badge badge--hold">5B 지표 후에만</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="svc" style="opacity:.75">
+          <div class="hd"><i class="dot dot--e" style="width:7px;height:7px"></i>youtubewc<span class="st">배포 실패</span></div>
+          <div class="meta">Workers · 마지막 배포 3h 전 · main</div>
+          <div class="verbs">
+            <span class="verb">⚡ 발주</span><span class="verb">재배포</span><span class="verb">로그 열기</span><span class="verb">리뷰팀 소집</span>
+          </div>
+          <div style="margin-top:7px;font-size:8px;color:#b32828;background:#fdf1f1;border:1px solid #f4c1c1;border-radius:6px;padding:4px 7px">잠김 — 5B 파일럿 지표 확인 전 착수 금지 (동사마다 실패 모드가 다름)</div>
+        </div>
+        <span class="mock__cap">허브가 뷰어에서 리모컨으로 — 단, 순서를 지켜서</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 5B 성공 전 착수 금지. 지금 고르면 하단에 경고가 뜬다.</p>
+      <div class="chips"><span class="chip chip--mid">동사별 상이</span><span class="chip">출처: 모험3 본안</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 축 6 — IA 골격 ═══ -->
+<section class="axis" id="axis-6">
+  <div class="axis__head"><span class="axis__num">축 6</span><h2>IA 골격과 내비게이션</h2></div>
+  <p class="axis__q">3장 MPA를 유지하며 잇는가, 별동을 세우는가, 재편하는가. (6A·6B 목업의 하단 탭바를 눌러 방을 오가보라)</p>
+  <div class="opts">
+
+    <div class="opt" data-axis="6" data-code="6A">
+      <div class="opt__top"><span class="opt__code">6A</span><span class="opt__name">3장 MPA + 공통 3탭</span><span class="badge badge--rec">추천 · 본선</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph" style="height:392px">
+          <div class="ph-top"><div class="ph-logo"></div><span class="ph-title" id="t6a-title">JaceHub</span><span class="r" id="t6a-sub">마지막 방 복원</span></div>
+          <div class="ph-body" id="t6a-hub">
+            <div class="m-stats">
+              <div class="m-stat"><b>23</b><span>전체</span></div>
+              <div class="m-stat"><b>2</b><span>주의</span></div>
+              <div class="m-stat"><b>17</b><span>활성</span></div>
+            </div>
+            <div class="m-grid">
+              <div class="m-card"><div class="nm"><i class="dot dot--e"></i>youtubewc</div><div class="sb">prod · 실패</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>kyou</div><div class="sb">prod · 2h</div></div>
+              <div class="m-card"><div class="nm"><i class="dot dot--w"></i>warren</div><div class="sb">7d 조용</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>crossbell</div><div class="sb">prod · 5h</div></div>
+            </div>
+          </div>
+          <div class="ph-body" id="t6a-lobby" style="display:none">
+            <div class="l-hero" style="font-size:11px">Apps</div>
+            <div class="l-grid">
+              <div class="l-tile"><div class="l-ico" style="width:34px;height:34px;font-size:11px;background:linear-gradient(135deg,#F5A623,#e08e0b)">R</div><span class="l-nm">rituall</span></div>
+              <div class="l-tile"><div class="l-ico" style="width:34px;height:34px;font-size:11px;background:linear-gradient(135deg,#0EA5E9,#0284C7)">J</div><span class="l-nm">jacemaster</span></div>
+              <div class="l-tile"><div class="l-ico" style="width:34px;height:34px;font-size:11px;background:linear-gradient(135deg,#8b5cf6,#6d28d9)">L</div><span class="l-nm">le</span></div>
+              <div class="l-tile"><div class="l-ico" style="width:34px;height:34px;font-size:11px;background:linear-gradient(135deg,#17C964,#0d9e4b)">W</div><span class="l-nm">warren</span></div>
+              <div class="l-tile"><div class="l-ico" style="width:34px;height:34px;font-size:11px;background:linear-gradient(135deg,#f43f5e,#be123c)">K</div><span class="l-nm">kyou</span></div>
+              <div class="l-tile"><div class="l-ico" style="width:34px;height:34px;font-size:11px;background:linear-gradient(135deg,#64748b,#334155)">C</div><span class="l-nm">ccwatch</span></div>
+            </div>
+            <div style="font-size:6.8px;color:#bbb;text-align:center;margin-top:auto">로비에서는 탭바 축소형(아이콘만) — 런처 감성 유지</div>
+          </div>
+          <div class="ph-body" id="t6a-quests" style="display:none">
+            <div class="q-row done" style="background:#fff"><span class="q-chk">✓</span><span class="t" style="color:#171717">매일 아침 의식</span><span class="q-bar" style="background:#eee"><i style="width:100%;background:#0EA5E9"></i></span></div>
+            <div class="q-row" style="background:#fff;border-color:#EAEAEA"><span class="q-chk" style="border-color:#ddd"></span><span class="t" style="color:#171717">저녁 의식</span><span class="q-bar" style="background:#eee"><i style="width:0"></i></span></div>
+            <div class="q-row" style="background:#fff;border-color:#EAEAEA"><span class="q-chk" style="border-color:#ddd"></span><span class="t" style="color:#171717">학습 1건 등록</span><span class="q-bar" style="background:#eee"><i style="width:0"></i></span></div>
+            <div style="font-size:6.8px;color:#bbb;text-align:center;margin-top:auto">퀘스트 방도 같은 집의 토큰을 입는다(4A와 시너지)</div>
+          </div>
+          <div class="tabbar" id="t6a-bar">
+            <div class="tb on" data-t6a="hub"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>허브</div>
+            <div class="tb" data-t6a="lobby"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>로비</div>
+            <div class="tb" data-t6a="quests"><span class="bdg"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>퀘스트</div>
+          </div>
+        </div>
+        <span class="mock__cap">하단 탭을 눌러보라 — 세 방이 한 집이 된다 (데스크톱은 헤더 탭)</span>
+      </div>
+      <p class="opt__desc">3장 MPA 유지, 마크업 조각만 공유. 마지막 방 복원. 세 방 한 탭 거리.</p>
+      <p class="opt__trade"><b>대가:</b> 멘탈 모델 접합의 최소 수술. 탭바가 로비 감성을 해칠 위험은 축소형으로 방어.</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 낮음</span><span class="chip">출처: 정합1</span></div>
+    </div>
+
+    <div class="opt" data-axis="6" data-code="6B">
+      <div class="opt__top"><span class="opt__code">6B</span><span class="opt__name">6A + 별동 실험장</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ph" style="height:250px">
+          <div class="ph-top"><div class="ph-logo"></div><span class="ph-title">JaceHub</span><span class="r">본선 = 6A 그대로</span></div>
+          <div class="ph-body">
+            <div class="m-stats">
+              <div class="m-stat"><b>23</b><span>전체</span></div>
+              <div class="m-stat"><b>2</b><span>주의</span></div>
+              <div class="m-stat"><b>17</b><span>활성</span></div>
+            </div>
+            <div class="m-grid">
+              <div class="m-card"><div class="nm"><i class="dot dot--e"></i>youtubewc</div><div class="sb">prod · 실패</div></div>
+              <div class="m-card"><div class="nm"><i class="dot"></i>kyou</div><div class="sb">prod · 2h</div></div>
+            </div>
+          </div>
+          <div class="tabbar">
+            <div class="tb on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>허브</div>
+            <div class="tb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>로비</div>
+            <div class="tb"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/></svg>퀘스트</div>
+          </div>
+        </div>
+        <div class="sat">
+          <b>별동 실험장 — 링크 최소, 본선 무손상, 각 1주 계측</b>
+          <div class="lk-row"><span class="lk2">/today.html</span><span class="lk2">/overworld.html</span></div>
+          <div style="font-size:.66rem;color:#999;margin-top:5px">지표: 격납고 재방문 주 2회 이하? · overworld 자발 재방문 vs quests.html</div>
+        </div>
+        <span class="mock__cap">본선은 6A, 모험 가설은 옆 건물에서 계측</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 실험장 유지 관리 소량. 되돌리기 0(별동 폐기). 1C·3C를 "화면 전체"로 검증하고 싶을 때 선택.</p>
+      <div class="chips"><span class="chip chip--low">되돌리기 0</span><span class="chip">출처: 교배</span></div>
+    </div>
+
+    <div class="opt" data-axis="6" data-code="6C">
+      <div class="opt__top"><span class="opt__code">6C</span><span class="opt__name">페이지 재편</span><span class="badge badge--hold">2라운드 보류 권장</span><span class="opt__check">✓</span></div>
+      <div class="mock no-select">
+        <div class="ia">
+          <div class="ia-row"><div class="ia-box ia-dead">index<small>관리</small></div><div class="ia-box ia-dead">lobby<small>런처</small></div><div class="ia-box ia-dead">quests<small>CRUD</small></div></div>
+          <div class="ia-arrow">↓ 재편 (spec §11 "3장 MPA" 관습 파기)</div>
+          <div class="ia-row">
+            <div class="ia-box ia-box--front">Today 정문<small>diff 피드 + 퀘스트 + 즐겨찾기</small></div>
+            <div class="ia-box">격납고<small>전수 그리드·CSV</small></div>
+          </div>
+          <div class="ia-row">
+            <div class="ia-box ia-box--merge">오버월드<small>lobby + quests 통합 리스킨</small></div>
+          </div>
+          <div class="st-note">1C·3C를 정식 채택했을 때의 골격 — URL·습관 재학습 발생</div>
+        </div>
+        <span class="mock__cap">가장 비싼 축 — 불만 지점이 미확정인 지금 걸기엔 근거 부족</span>
+      </div>
+      <p class="opt__trade"><b>대가:</b> 되돌리기 높음. 별동 파일럿(6B) 지표를 보고 2라운드에 판단해도 늦지 않다.</p>
+      <div class="chips"><span class="chip chip--high">되돌리기 높음</span><span class="chip">출처: 모험1+2</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 미확정 ═══ -->
+<section class="open-q">
+  <h2>미확정 — 답장에 한 줄 얹어주면 좋은 것들 (지어내지 않은 목록)</h2>
+  <ul>
+    <li><b>2C</b> 스냅샷 적재 트리거 — cron vs 대시보드 방문 시</li>
+    <li><b>1B/1C</b> "변화"로 칠 신호 목록 — 새 배포·실패 전환·stale 진입 외 추가 여부</li>
+    <li><b>4B</b> 발행 규칙 — 3개 한도의 우선순위, 신호→클리어 조건 매핑</li>
+    <li><b>5B</b> 오발주 방지 UX(위 목업의 확인 스텝·언두가 시안) · 발주 후 상태 피드백 채널</li>
+    <li><b>3C</b> 오버월드 아트 볼륨과 에셋 제작 여력</li>
+  </ul>
+</section>
+
+</main>
+
+<!-- ═══ 하단 답장 바 ═══ -->
+<div class="ansbar">
+  <div class="ansbar__in">
+    <div class="warns">
+      <div class="warn warn--stop" id="w-1c2c">1C(Today 정문)는 2C(D1 스냅샷 이력)가 전제 — 축 2를 2C로 바꾸거나 1B로 내려라.</div>
+      <div class="warn warn--stop" id="w-5c">5C는 5B 파일럿 지표 확인 후에만 — 이번 결정은 5B까지가 안전하다.</div>
+      <div class="warn warn--info" id="w-3c6c">3C를 정식 채택하려면 6C와 세트다. 별동 실험이면 지금 골격(6A/6B)으로 충분.</div>
+      <div class="warn warn--info" id="w-2a">2A(현행 유지)를 고르면 1B·1C·3B·3C·4B가 기기 종속 위에 선다 — 양 파 모두 2B를 첫 스프린트로 합의했다.</div>
+      <div class="warn warn--info" id="w-4b">4B/4C 정식화 시 quests 테이블에 origin 컬럼 additive ALTER(기존 데이터 무손실, 롤백=컬럼 무시).</div>
+    </div>
+    <div class="ansrow">
+      <span class="anslabel">답장 한 줄</span>
+      <div class="ansline" id="ansline">축별로 카드를 골라줘 — 예: 1B 2B 3B 4C 5B 6A</div>
+      <button class="btn btn--accent" id="btn-copy">복사</button>
+      <button class="btn" id="btn-clear">초기화</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  /* ── 선택 상태 ── */
+  var state = {1:null, 2:null, 3:[], 4:null, 5:null, 6:null};
+
+  function render(){
+    document.querySelectorAll('.opt').forEach(function(el){
+      var ax = el.dataset.axis, code = el.dataset.code;
+      var on = (ax === '3') ? state[3].indexOf(code) >= 0 : state[ax] === code;
+      el.classList.toggle('sel', on);
+    });
+    var parts = [];
+    ['1','2','4','5','6'].forEach(function(ax){ if(state[ax]) parts.push(state[ax]); });
+    if(state[3].length) parts.push(state[3].sort().join('+'));
+    parts.sort(function(a,b){ return a.charCodeAt(0)-b.charCodeAt(0); });
+    var line = document.getElementById('ansline');
+    if(parts.length){ line.textContent = parts.join(' '); line.classList.add('ready'); }
+    else { line.textContent = '축별로 카드를 골라줘 — 예: 1B 2B 3B 4C 5B 6A'; line.classList.remove('ready'); }
+    /* 의존성 경고 */
+    show('w-1c2c', state[1]==='1C' && state[2] !== '2C');
+    show('w-5c',   state[5]==='5C');
+    show('w-3c6c', state[3].indexOf('3C')>=0 && state[6] !== '6C');
+    show('w-2a',   state[2]==='2A' && (state[1]==='1B'||state[1]==='1C'||state[3].length&&state[3].indexOf('3A')<0||state[4]==='4B'||state[4]==='4C'));
+    show('w-4b',   state[4]==='4B'||state[4]==='4C');
+  }
+  function show(id,on){ document.getElementById(id).classList.toggle('show', !!on); }
+
+  document.querySelectorAll('.opt').forEach(function(el){
+    el.addEventListener('click', function(ev){
+      if(ev.target.closest('.no-select')) return;   /* 목업 내부 조작은 선택 아님 */
+      var ax = el.dataset.axis, code = el.dataset.code;
+      if(ax === '3'){
+        if(code === '3A'){ state[3] = (state[3].length===1 && state[3][0]==='3A') ? [] : ['3A']; }
+        else {
+          var i = state[3].indexOf(code);
+          if(i>=0) state[3].splice(i,1); else { state[3] = state[3].filter(function(c){return c!=='3A';}); state[3].push(code); }
+        }
+      } else {
+        state[ax] = (state[ax]===code) ? null : code;
+      }
+      render();
+    });
+  });
+
+  document.getElementById('btn-rec').addEventListener('click', function(){
+    state = {1:'1B', 2:'2B', 3:['3B'], 4:'4C', 5:'5B', 6:'6A'};
+    render();
+    document.querySelector('.ansbar').scrollIntoView({behavior:'smooth', block:'end'});
+  });
+  document.getElementById('btn-clear').addEventListener('click', function(){
+    state = {1:null,2:null,3:[],4:null,5:null,6:null}; render();
+  });
+  document.getElementById('btn-copy').addEventListener('click', function(){
+    var t = document.getElementById('ansline').textContent;
+    var done = function(){ var b=document.getElementById('btn-copy'); b.textContent='복사됨'; setTimeout(function(){b.textContent='복사';},1200); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done, done); }
+    else { var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+  });
+
+  /* ── 목업 마이크로인터랙션 ── */
+  /* 1C: Today / 격납고 탭 */
+  document.querySelectorAll('[data-t1c]').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('[data-t1c]').forEach(function(t){ t.classList.toggle('on', t===tab); });
+      document.getElementById('t1c-today').style.display  = tab.dataset.t1c==='today'  ? 'flex' : 'none';
+      document.getElementById('t1c-hangar').style.display = tab.dataset.t1c==='hangar' ? 'flex' : 'none';
+    });
+  });
+  /* 3B: 배지 토글 */
+  var sw = document.getElementById('sw3b');
+  sw.addEventListener('click', function(){
+    sw.classList.toggle('off');
+    var off = sw.classList.contains('off');
+    document.querySelectorAll('.b3').forEach(function(b){ b.style.opacity = off ? '0' : '1'; });
+  });
+  /* 3C: 방치 슬라이더 → 건물 노화 */
+  var rng = document.getElementById('ow-range');
+  rng.addEventListener('input', function(){
+    var v = Number(rng.value), r = v/30;
+    document.getElementById('ow-days').textContent = 'D+' + v;
+    document.getElementById('ow-bldg').style.filter = 'grayscale(' + (r*0.9) + ') brightness(' + (1 - r*0.18) + ')';
+    document.getElementById('ow-cracks').style.opacity = Math.max(0, (v-6)/24);
+    document.getElementById('ow-weeds').style.opacity  = Math.max(0, (v-3)/22);
+    document.getElementById('ow-label').textContent = 'blurryjourney · ' + (v>=20 ? '폐가 직전' : v>=8 ? 'Lv.3 낡음' : 'Lv.3');
+  });
+  /* 4B: 원탭 클리어 */
+  document.querySelectorAll('.f4b .q-chk').forEach(function(chk){
+    chk.addEventListener('click', function(){
+      var row = chk.closest('.q-row'); row.classList.toggle('done');
+      chk.textContent = row.classList.contains('done') ? '✓' : '';
+    });
+  });
+  /* 5B: 발주 플로우 상태 기계 */
+  var zBtn=document.getElementById('z-btn'), zPop=document.getElementById('z-pop'),
+      zWait=document.getElementById('z-wait'), zOk=document.getElementById('z-ok'), zTimer=null;
+  function zReset(){ clearTimeout(zTimer); zPop.classList.remove('show'); zWait.classList.remove('show'); zOk.classList.remove('show'); zBtn.disabled=false; }
+  zBtn.addEventListener('click', function(){ zReset(); zPop.classList.add('show'); document.getElementById('z-input').focus(); });
+  document.getElementById('z-no').addEventListener('click', zReset);
+  document.getElementById('z-go').addEventListener('click', function(){
+    zPop.classList.remove('show'); zBtn.disabled=true; zWait.classList.add('show');
+    zTimer = setTimeout(function(){ zWait.classList.remove('show'); zOk.classList.add('show');
+      zTimer = setTimeout(function(){ zReset(); }, 2600);
+    }, 1600);
+  });
+  document.getElementById('z-undo').addEventListener('click', zReset);
+  /* 6A: 하단 탭바 */
+  document.querySelectorAll('[data-t6a]').forEach(function(tb){
+    tb.addEventListener('click', function(){
+      document.querySelectorAll('[data-t6a]').forEach(function(t){ t.classList.toggle('on', t===tb); });
+      ['hub','lobby','quests'].forEach(function(k){
+        document.getElementById('t6a-'+k).style.display = tb.dataset.t6a===k ? 'flex' : 'none';
+      });
+      var titles = {hub:'JaceHub', lobby:'Lobby', quests:'퀘스트'};
+      var subs = {hub:'마지막 방 복원', lobby:'축소형 탭바', quests:'토큰 승계'};
+      document.getElementById('t6a-title').textContent = titles[tb.dataset.t6a];
+      document.getElementById('t6a-sub').textContent = subs[tb.dataset.t6a];
+    });
+  });
+
+  render();
+  window.__READY = true;
+})();
+</script>
+</body>
+</html>

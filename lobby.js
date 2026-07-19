@@ -11,6 +11,7 @@
     lobbyMeta:  'jacehub_lobby_meta',
     favorites:  'jacehub_favorites',
     cache:      'jacehub_cache',
+    vaultPin:   'jacehub_vault_pin',
   };
 
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -277,6 +278,59 @@
     return cache.savedAt || 0;
   }
 
+  // ── Vault hydration (폰↔PC 동기) ──
+  // 관리 페이지가 KV 볼트에 올린 스냅샷을 받아온다. 서버 savedAt이 로컬보다
+  // 새로울 때만 적용(최신 우선). 적용했으면 true.
+  async function hydrateFromVault(pinOverride) {
+    const pin = pinOverride || localStorage.getItem(STORAGE_KEYS.vaultPin) || '';
+    if (!/^\d{6}$/.test(pin)) return false;
+    try {
+      const res = await fetch(`/api/vault?pin=${encodeURIComponent(pin)}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (!data.success) return false;
+      if (pinOverride) localStorage.setItem(STORAGE_KEYS.vaultPin, pin); // 검증된 PIN만 기억
+      const credentials = data.credentials || {};
+      if (Array.isArray(credentials.favorites)) {
+        localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify(credentials.favorites));
+      }
+      const serverCache = credentials.lobby?.cache;
+      if (!serverCache || !Array.isArray(serverCache.apps)) return false;
+      const local = loadLobbyCache();
+      if ((Number(serverCache.savedAt) || 0) <= (Number(local?.savedAt) || 0)) return false;
+      localStorage.setItem(STORAGE_KEYS.lobbyCache, JSON.stringify(serverCache));
+      const serverMeta = credentials.lobby.meta;
+      if (serverMeta && typeof serverMeta === 'object' && !Array.isArray(serverMeta)) {
+        localStorage.setItem(STORAGE_KEYS.lobbyMeta, JSON.stringify(serverMeta));
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function rerenderFromStorage() {
+    const savedAt = buildApps();
+    render();
+    setFooterUpdated(savedAt);
+  }
+
+  async function handlePinSync() {
+    const pin = prompt('허브 볼트 PIN(6자리 숫자)을 입력하면 이 기기로 즐겨찾기를 가져와요:');
+    if (pin === null) return;
+    const trimmed = pin.trim();
+    if (!/^\d{6}$/.test(trimmed)) {
+      alert('PIN은 6자리 숫자여야 해요.');
+      return;
+    }
+    const updated = await hydrateFromVault(trimmed);
+    if (updated) {
+      rerenderFromStorage();
+    } else {
+      alert('보관소를 찾지 못했거나 아직 스냅샷이 없어요. 허브(관리 페이지)에서 먼저 저장해주세요.');
+    }
+  }
+
   // ── Stale snapshot notice ──
   function renderStaleBanner() {
     const existing = document.getElementById('lobby-stale-banner');
@@ -449,9 +503,14 @@
     await loadIconManifest();
     const savedAt = buildApps();
     bindEvents();
+    document.getElementById('lobby-sync-pin')?.addEventListener('click', handlePinSync);
     render();
     setFooterUpdated(savedAt);
     window.__READY = true; // headless screenshot hook
+    // 로컬 렌더 후 백그라운드로 KV 스냅샷 확인 — 더 새로우면 갱신 (폰↔PC 동기)
+    hydrateFromVault().then((updated) => {
+      if (updated) rerenderFromStorage();
+    });
   }
 
   if (document.readyState === 'loading') {

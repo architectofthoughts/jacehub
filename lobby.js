@@ -17,6 +17,39 @@
   const NEW_DAYS = 14;
   const UPDATED_DAYS = 7;
 
+  // Bundled SVG tile icons (see icons/lobby/README.md). Loaded from the
+  // manifest at init; apps without an entry fall back to emoji/initial tiles.
+  const ICON_BASE = 'icons/lobby/';
+  let iconManifest = {};
+
+  // Manifest keys and app names are both normalized (trim + lowercase) so
+  // cosmetic mismatches (stray whitespace, case drift) never break icons.
+  function normalizeName(name) {
+    return String(name || '').trim().toLowerCase();
+  }
+
+  async function loadIconManifest() {
+    try {
+      const res = await fetch(`${ICON_BASE}manifest.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const parsed = await res.json();
+      if (parsed && typeof parsed === 'object') {
+        iconManifest = {};
+        for (const [key, file] of Object.entries(parsed)) {
+          iconManifest[normalizeName(key)] = file;
+        }
+      }
+    } catch {
+      /* offline/file:// — emoji/initial fallback keeps working */
+    }
+  }
+
+  // App names that only exist in pre-2026-07-04 snapshots (renamed/absorbed:
+  // ideabox→crossbell, transparenty→jacemaster, utajlpt→learneverything).
+  // Their presence means the snapshot is stale — we show a gentle notice
+  // instead of hiding them.
+  const LEGACY_APP_NAMES = new Set(['ideabox', 'transparenty', 'utajlpt']);
+
   const CATEGORY_LABELS = {
     game:        '게임',
     tool:        '도구',
@@ -215,6 +248,7 @@
 
     allApps = cache.apps.map((app) => {
       const m = meta[app.name] || {};
+      const iconFile = iconManifest[normalizeName(app.name)];
       const primaryUrl = getPrimaryUrl(app);
       const description = (m.description || app.description || '').trim();
       const category = inferCategory(app, m.category);
@@ -231,6 +265,7 @@
         category,
         categoryLabel: CATEGORY_LABELS[category] || category,
         palette,
+        svgIcon: iconFile ? ICON_BASE + iconFile : '',
         icon: m.icon || '',
         iconIsEmoji: m.icon ? isEmoji(m.icon) : false,
         initial: getInitial(app.name),
@@ -242,6 +277,32 @@
     return cache.savedAt || 0;
   }
 
+  // ── Stale snapshot notice ──
+  function renderStaleBanner() {
+    const existing = document.getElementById('lobby-stale-banner');
+    const isStale = allApps.some((app) => LEGACY_APP_NAMES.has(normalizeName(app.name)));
+
+    if (!isStale || allApps.length === 0) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+
+    const banner = document.createElement('section');
+    banner.id = 'lobby-stale-banner';
+    banner.className = 'lobby-stale';
+    banner.setAttribute('role', 'note');
+    banner.innerHTML = `
+      <svg class="lobby-stale__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+        <polyline points="21 3 21 9 15 9"/>
+      </svg>
+      <p class="lobby-stale__msg">즐겨찾기 목록이 예전 상태예요. 메인 페이지를 한 번 열면 최신으로 갱신돼요.</p>
+      <a class="lobby-stale__btn" href="index.html">메인 페이지 열기</a>
+    `;
+    els.hero.insertAdjacentElement('afterend', banner);
+  }
+
   // ── Render ──
   function render() {
     if (allApps.length === 0) {
@@ -251,6 +312,7 @@
       els.gridWrap.style.display = 'none';
       els.nomatch.style.display = 'none';
       els.footerCount.textContent = '0개의 앱';
+      renderStaleBanner();
       return;
     }
 
@@ -258,6 +320,7 @@
     els.hero.style.display = 'block';
     els.heroSubtitle.textContent = `즐겨찾기한 ${allApps.length}개의 앱이에요. 아이콘을 눌러 들어가보세요.`;
 
+    renderStaleBanner();
     renderCategories();
     renderGrid();
     els.footerCount.textContent = `${allApps.length}개의 앱 (현재 ${visibleApps().length}개 표시)`;
@@ -318,15 +381,19 @@
       if (app.isNew) badges.push('<span class="app-badge app-badge--new">NEW</span>');
       else if (app.isUpdated) badges.push('<span class="app-badge app-badge--updated">UPD</span>');
 
-      const iconStyle = `background: linear-gradient(135deg, ${app.palette.from}, ${app.palette.to});`;
-      const iconContent = app.icon && app.iconIsEmoji
-        ? `<span class="app-tile__icon-emoji" aria-hidden="true">${escapeHtml(app.icon)}</span>`
-        : escapeHtml(app.initial);
+      const iconStyle = app.svgIcon
+        ? ''
+        : `background: linear-gradient(135deg, ${app.palette.from}, ${app.palette.to});`;
+      const iconContent = app.svgIcon
+        ? `<img src="${escapeHtml(app.svgIcon)}" alt="" loading="lazy">`
+        : app.icon && app.iconIsEmoji
+          ? `<span class="app-tile__icon-emoji" aria-hidden="true">${escapeHtml(app.icon)}</span>`
+          : escapeHtml(app.initial);
 
       return `
         <${tag} class="app-tile" ${linkAttrs} aria-label="${escapeHtml(app.name)} 열기">
           ${badges.length ? `<div class="app-tile__badges">${badges.join('')}</div>` : ''}
-          <div class="app-tile__icon" style="${iconStyle}">
+          <div class="app-tile__icon${app.svgIcon ? ' app-tile__icon--svg' : ''}"${iconStyle ? ` style="${iconStyle}"` : ''}>
             ${iconContent}
           </div>
           <div class="app-tile__name" title="${escapeHtml(app.name)}">${escapeHtml(app.name)}</div>
@@ -378,11 +445,13 @@
   }
 
   // ── Init ──
-  function init() {
+  async function init() {
+    await loadIconManifest();
     const savedAt = buildApps();
     bindEvents();
     render();
     setFooterUpdated(savedAt);
+    window.__READY = true; // headless screenshot hook
   }
 
   if (document.readyState === 'loading') {

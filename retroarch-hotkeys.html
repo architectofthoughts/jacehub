@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetroArch 핫키 — 후추네 게임룸 🦎</title>
+  <meta name="description" content="EmulatorHub RetroArch 핫키 치트시트 — SELECT 홀드 패드 조합 + 키보드 단축키">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0e1116;
+      --bg-2:      #151a22;
+      --surface:   #1b212b;
+      --surface-2: #222a36;
+      --border:    #2c3543;
+      --border-2:  #3a4555;
+      --text:      #e8edf4;
+      --text-mut:  #9aa7b8;
+      --text-dim:  #6b7a8d;
+      --gecko:     #5fd16a;
+      --gecko-d:   #34a93f;
+      --orange:    #FF7B54;
+      --red:       #FF4B4B;
+      --blue:      #4aa8ff;
+      --yellow:    #ffd23f;
+      --x-a:       #43c463;  /* A green  */
+      --x-b:       #ff5b5b;  /* B red    */
+      --x-x:       #4aa8ff;  /* X blue   */
+      --x-y:       #ffd23f;  /* Y yellow */
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      --shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 15% -10%, rgba(95,209,106,0.10), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(255,123,84,0.10), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      padding: clamp(1rem, 4vw, 3rem) 1rem 4rem;
+    }
+
+    .wrap { max-width: 880px; margin: 0 auto; }
+
+    /* ───────────── Hero ───────────── */
+    .hero {
+      text-align: center;
+      padding: 1rem 0 2.5rem;
+      position: relative;
+    }
+    .hero__pad { width: clamp(120px, 26vw, 168px); height: auto; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5)); }
+    .hero__kicker {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--gecko);
+      background: rgba(95,209,106,0.10);
+      border: 1px solid rgba(95,209,106,0.30);
+      padding: 0.3rem 0.8rem; border-radius: 999px;
+      margin-bottom: 1.1rem;
+    }
+    .hero__title {
+      font-size: clamp(1.9rem, 6vw, 3rem);
+      font-weight: 900; letter-spacing: -0.02em; line-height: 1.05;
+      margin: 0.6rem 0 0.5rem;
+      background: linear-gradient(135deg, #fff 30%, var(--gecko) 120%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero__sub { color: var(--text-mut); font-size: clamp(0.92rem, 2.6vw, 1.05rem); }
+    .hero__path {
+      display: inline-block; margin-top: 1rem;
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-size: 0.8rem; color: var(--text-dim);
+      background: var(--bg-2); border: 1px solid var(--border);
+      padding: 0.4rem 0.75rem; border-radius: 8px;
+    }
+
+    /* ───────────── Section ───────────── */
+    .section { margin-top: 2.5rem; }
+    .section__head { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.1rem; }
+    .section__icon {
+      width: 38px; height: 38px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 11px;
+      background: var(--surface-2); border: 1px solid var(--border-2);
+    }
+    .section__title { font-size: 1.18rem; font-weight: 800; letter-spacing: -0.01em; }
+    .section__hint { color: var(--text-mut); font-size: 0.86rem; font-weight: 500; }
+
+    /* ───────────── Pad combo cards ───────────── */
+    .combos { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 0.85rem; }
+    .combo {
+      display: flex; align-items: center; gap: 0.9rem;
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg-2) 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.95rem 1rem;
+      transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    }
+    .combo:hover { transform: translateY(-3px); border-color: var(--border-2); box-shadow: var(--shadow); }
+    .combo__keys { display: flex; align-items: center; gap: 0.35rem; flex: none; }
+    .combo__plus { color: var(--text-dim); font-weight: 800; font-size: 0.9rem; }
+    .combo__label { display: flex; flex-direction: column; gap: 0.1rem; }
+    .combo__name { font-weight: 700; font-size: 0.98rem; }
+    .combo__kbd { font-size: 0.74rem; color: var(--text-dim); font-family: ui-monospace, monospace; }
+
+    /* SELECT pill */
+    .select-pill {
+      display: inline-flex; align-items: center;
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em;
+      color: var(--text); background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-bottom-width: 3px;
+      padding: 0.32rem 0.55rem; border-radius: 7px; white-space: nowrap;
+    }
+
+    /* Face button glyph */
+    .face {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-weight: 900; font-size: 0.92rem; color: #0e1116;
+      border: 1px solid rgba(255,255,255,0.25);
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,0.22), 0 2px 4px rgba(0,0,0,0.4);
+    }
+    .face--a { background: var(--x-a); }
+    .face--b { background: var(--x-b); color:#fff; }
+    .face--x { background: var(--x-x); }
+    .face--y { background: var(--x-y); }
+
+    /* Dpad glyph */
+    .dpad-key {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: grid; place-items: center;
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      border-bottom-width: 3px;
+    }
+    .dpad-key svg { width: 16px; height: 16px; }
+
+    /* ───────────── Keyboard ───────────── */
+    .kb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.7rem; }
+    .kb-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 0.7rem 0.85rem;
+    }
+    .keycap {
+      flex: none; min-width: 42px; height: 40px; padding: 0 0.5rem;
+      display: grid; place-items: center;
+      font-family: ui-monospace, 'SF Mono', monospace; font-weight: 700; font-size: 0.92rem;
+      color: var(--text);
+      background: linear-gradient(180deg, #2a3340, #1b212b);
+      border: 1px solid var(--border-2);
+      border-bottom: 3px solid #0a0d12;
+      border-radius: 8px;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+    }
+    .kb-row__name { font-weight: 600; font-size: 0.92rem; }
+
+    /* ───────────── Note ───────────── */
+    .note {
+      margin-top: 2rem;
+      display: flex; gap: 0.8rem;
+      background: rgba(255,210,63,0.06);
+      border: 1px solid rgba(255,210,63,0.25);
+      border-radius: 12px; padding: 1rem 1.1rem;
+      font-size: 0.9rem; color: var(--text-mut);
+    }
+    .note b { color: var(--text); }
+    .note__ico { flex: none; color: var(--yellow); }
+
+    /* ───────────── Footer ───────────── */
+    .foot {
+      margin-top: 2.5rem; text-align: center;
+      color: var(--text-dim); font-size: 0.82rem;
+    }
+    .foot__sig { color: var(--gecko); font-weight: 700; }
+    .foot a { color: var(--text-mut); text-decoration: none; border-bottom: 1px dotted var(--border-2); }
+    .foot a:hover { color: var(--gecko); }
+
+    @media (max-width: 480px) {
+      .combo { padding: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- ═══════════ Hero ═══════════ -->
+    <header class="hero">
+      <!-- gamepad SVG -->
+      <svg class="hero__pad" viewBox="0 0 200 132" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="pad-body" x1="0" y1="0" x2="0" y2="132" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#283341"/><stop offset="1" stop-color="#171d26"/>
+          </linearGradient>
+          <radialGradient id="pad-glow" cx="0.5" cy="0.3" r="0.8">
+            <stop stop-color="#5fd16a" stop-opacity="0.25"/><stop offset="1" stop-color="#5fd16a" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="100" cy="70" rx="96" ry="58" fill="url(#pad-glow)"/>
+        <path d="M52 34h96c14 0 24 6 30 22l16 44c6 18-8 30-24 24l-26-12c-6-3-12-4-18-4H46c-6 0-12 1-18 4L2 124C-14 130-28 118-22 100L-6 56C0 40 10 34 24 34" transform="translate(8,0)" fill="url(#pad-body)" stroke="#3a4555" stroke-width="2"/>
+        <!-- left dpad -->
+        <rect x="40" y="58" width="13" height="37" rx="3" fill="#0f141b"/>
+        <rect x="28" y="70" width="37" height="13" rx="3" fill="#0f141b"/>
+        <!-- center buttons SELECT/START -->
+        <rect x="86" y="62" width="12" height="6" rx="3" fill="#3a4555"/>
+        <rect x="102" y="62" width="12" height="6" rx="3" fill="#3a4555"/>
+        <!-- face buttons -->
+        <circle cx="150" cy="78" r="8" fill="#43c463"/>
+        <circle cx="168" cy="62" r="8" fill="#ff5b5b"/>
+        <circle cx="132" cy="62" r="8" fill="#4aa8ff"/>
+        <circle cx="150" cy="46" r="8" fill="#ffd23f"/>
+      </svg>
+
+      <div>
+        <span class="hero__kicker">🦎 후추네 게임룸</span>
+      </div>
+      <h1 class="hero__title">RetroArch 핫키</h1>
+      <p class="hero__sub">EmulatorHub 레트로아크 치트시트 · 패드는 <b style="color:var(--text)">SELECT 홀드 + 버튼</b></p>
+      <code class="hero__path">C:\EmulatorHub\Emulator\Emulators\RetroArch</code>
+    </header>
+
+    <!-- ═══════════ Pad combos ═══════════ -->
+    <section class="section">
+      <div class="section__head">
+        <span class="section__icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5fd16a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/>
+            <line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/>
+            <rect x="2" y="6" width="20" height="12" rx="6"/>
+          </svg>
+        </span>
+        <div>
+          <div class="section__title">패드 핫키</div>
+          <div class="section__hint">SELECT 버튼을 누른 채로 함께 누르기</div>
+        </div>
+      </div>
+
+      <div class="combos">
+        <!-- Quick Save -->
+        <div class="combo">
+          <div class="combo__keys">
+            <span class="select-pill">SELECT</span>
+            <span class="combo__plus">+</span>
+            <span class="face face--x">X</span>
+          </div>
+          <div class="combo__label">
+            <span class="combo__name">퀵 세이브</span>
+            <span class="combo__kbd">Save State · F2</span>
+          </div>
+        </div>
+
+        <!-- Quick Load -->
+        <div class="combo">
+          <div class="combo__keys">
+            <span class="select-pill">SELECT</span>
+            <span class="combo__plus">+</span>
+            <span class="face face--a">A</span>
+          </div>
+          <div class="combo__label">
+            <span class="combo__name">퀵 로드</span>
+            <span class="combo__kbd">Load State · F4</span>
+          </div>
+        </div>
+
+        <!-- Screenshot -->
+        <div class="combo">
+          <div class="combo__keys">
+            <span class="select-pill">SELECT</span>
+            <span class="combo__plus">+</span>
+            <span class="face face--b">B</span>
+          </div>
+          <div class="combo__label">
+            <span class="combo__name">스크린샷</span>
+            <span class="combo__kbd">Screenshot · T</span>
+          </div>
+        </div>
+
+        <!-- Rewind -->
+        <div class="combo">
+          <div class="combo__keys">
+            <span class="select-pill">SELECT</span>
+            <span class="combo__plus">+</span>
+            <span class="dpad-key">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#e8edf4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            </span>
+          </div>
+          <div class="combo__label">
+            <span class="combo__name">되감기</span>
+            <span class="combo__kbd">Rewind · D-pad ↑</span>
+          </div>
+        </div>
+
+        <!-- Slot + -->
+        <div class="combo">
+          <div class="combo__keys">
+            <span class="select-pill">SELECT</span>
+            <span class="combo__plus">+</span>
+            <span class="dpad-key">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#e8edf4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </span>
+          </div>
+          <div class="combo__label">
+            <span class="combo__name">세이브 슬롯 +1</span>
+            <span class="combo__kbd">Slot Increase · F7</span>
+          </div>
+        </div>
+
+        <!-- Slot - -->
+        <div class="combo">
+          <div class="combo__keys">
+            <span class="select-pill">SELECT</span>
+            <span class="combo__plus">+</span>
+            <span class="dpad-key">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#e8edf4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+          <div class="combo__label">
+            <span class="combo__name">세이브 슬롯 −1</span>
+            <span class="combo__kbd">Slot Decrease · F6</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ Keyboard ═══════════ -->
+    <section class="section">
+      <div class="section__head">
+        <span class="section__icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF7B54" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <line x1="6" y1="10" x2="6" y2="10"/><line x1="10" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="18" y1="10" x2="18" y2="10"/>
+            <line x1="7" y1="14" x2="17" y2="14"/>
+          </svg>
+        </span>
+        <div>
+          <div class="section__title">키보드 단축키</div>
+          <div class="section__hint">패드 조합 없이 키 하나로</div>
+        </div>
+      </div>
+
+      <div class="kb-grid">
+        <div class="kb-row"><span class="keycap">F1</span><span class="kb-row__name">메뉴 열기 / 닫기</span></div>
+        <div class="kb-row"><span class="keycap">Esc</span><span class="kb-row__name">레트로아크 종료</span></div>
+        <div class="kb-row"><span class="keycap">F2</span><span class="kb-row__name">퀵 세이브</span></div>
+        <div class="kb-row"><span class="keycap">F4</span><span class="kb-row__name">퀵 로드</span></div>
+        <div class="kb-row"><span class="keycap">F6</span><span class="kb-row__name">슬롯 −1</span></div>
+        <div class="kb-row"><span class="keycap">F7</span><span class="kb-row__name">슬롯 +1</span></div>
+        <div class="kb-row"><span class="keycap">P</span><span class="kb-row__name">일시정지</span></div>
+        <div class="kb-row"><span class="keycap">L</span><span class="kb-row__name">빨리감기 (홀드)</span></div>
+        <div class="kb-row"><span class="keycap">R</span><span class="kb-row__name">되감기 (홀드)</span></div>
+        <div class="kb-row"><span class="keycap">H</span><span class="kb-row__name">리셋</span></div>
+        <div class="kb-row"><span class="keycap">T</span><span class="kb-row__name">스크린샷</span></div>
+      </div>
+    </section>
+
+    <!-- ═══════════ Note ═══════════ -->
+    <div class="note">
+      <svg class="note__ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <div>
+        <b>패드로 메뉴 열기:</b> 메뉴 토글에는 패드 콤보(<code style="font-family:ui-monospace,monospace">gamepad_combo&nbsp;4</code>)가 걸려 있는데, 콤보 번호 의미가 레트로아크 버전마다 조금씩 달라서 패드 조합은 확실하지 않아.
+        보통 <b>SELECT + START</b> 동시 누르기가 먹히고, 안 되면 키보드 <b>F1</b>이 가장 확실해.
+        <br>버튼 매핑 근거(XInput): <code style="font-family:ui-monospace,monospace">0=B · 1=A · 2=X · 3=Y · 4=LB · 5=RB · 6=START · 7=SELECT</code>
+      </div>
+    </div>
+
+    <!-- ═══════════ Footer ═══════════ -->
+    <footer class="foot">
+      <p><span class="foot__sig">🦎 후추봇</span>이 <code style="font-family:ui-monospace,monospace">retroarch.cfg</code>에서 직접 읽어 정리했어 · <a href="/">← JaceHub</a></p>
+    </footer>
+
+  </div>
+</body>
+</html>

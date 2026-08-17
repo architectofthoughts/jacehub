@@ -17,13 +17,35 @@
     accountId:   'jacehub_account_id',
     apiToken:    'jacehub_api_token',
     ghToken:     'jacehub_gh_token',
+    vercelToken: 'jacehub_vercel_token',
     cache:       'jacehub_cache',
     favorites:   'jacehub_favorites',
     vaultLinked: 'jacehub_vault_linked',
     vaultPin:    'jacehub_vault_pin',
     lobbyCache:  'jacehub_lobby_cache',
     lobbyMeta:   'jacehub_lobby_meta',
+    quickLobbyOpen: 'jacehub_quicklobby_open',
   };
+
+  // Quick lobby icons — same bundled SVG set the lobby page uses (read-only).
+  const QUICK_LOBBY_ICON_BASE = 'icons/lobby/';
+
+  // Deterministic gradient fallback palette — mirrors lobby.js GRADIENT_PALETTES
+  // so tiles look identical between the popup and the full lobby page.
+  const QUICK_LOBBY_GRADIENTS = [
+    { from: '#FF6B6B', to: '#FF4B4B' },
+    { from: '#0EA5E9', to: '#0284C7' },
+    { from: '#17C964', to: '#0E9F4D' },
+    { from: '#F5A623', to: '#F37C20' },
+    { from: '#A78BFA', to: '#7C3AED' },
+    { from: '#F472B6', to: '#DB2777' },
+    { from: '#22D3EE', to: '#0891B2' },
+    { from: '#FBBF24', to: '#D97706' },
+    { from: '#34D399', to: '#059669' },
+    { from: '#818CF8', to: '#4F46E5' },
+    { from: '#F87171', to: '#DC2626' },
+    { from: '#FB923C', to: '#EA580C' },
+  ];
 
   // Categories surfaced in the lobby meta editor.
   const LOBBY_CATEGORIES = [
@@ -75,6 +97,7 @@
     inputAccountId:   $('#input-account-id'),
     inputApiToken:    $('#input-api-token'),
     inputGhToken:     $('#input-gh-token'),
+    inputVercelToken: $('#input-vercel-token'),
     // Vault
     vaultSection:     $('#vault-section'),
     vaultStatus:      $('#vault-status'),
@@ -110,6 +133,12 @@
     btnMetaClose:     $('#btn-meta-close'),
     btnMetaReset:     $('#btn-meta-reset'),
     metaIconPreview:  $('#meta-icon-preview'),
+    // Quick Lobby
+    quickLobby:       $('#quicklobby'),
+    quickLobbyFab:    $('#quicklobby-fab'),
+    quickLobbyPanel:  $('#quicklobby-panel'),
+    quickLobbyGrid:   $('#quicklobby-grid'),
+    quickLobbyEmpty:  $('#quicklobby-empty'),
     // Toast
     toastContainer:   $('#toast-container'),
   };
@@ -124,20 +153,24 @@
   let currentProjects = [];
   let favoriteProjects = loadFavorites();
   let activeRadarFilter = 'all';
+  // Quick lobby icon manifest, keyed by normalized (trim + lowercase) app name.
+  let quickLobbyIconsByName = {};
 
   // ── Storage ──
   function getConfig() {
     return {
-      accountId: localStorage.getItem(STORAGE_KEYS.accountId) || '',
-      apiToken:  localStorage.getItem(STORAGE_KEYS.apiToken) || '',
-      ghToken:   localStorage.getItem(STORAGE_KEYS.ghToken) || '',
+      accountId:   localStorage.getItem(STORAGE_KEYS.accountId)   || '',
+      apiToken:    localStorage.getItem(STORAGE_KEYS.apiToken)    || '',
+      ghToken:     localStorage.getItem(STORAGE_KEYS.ghToken)     || '',
+      vercelToken: localStorage.getItem(STORAGE_KEYS.vercelToken) || '',
     };
   }
 
-  function saveConfig(accountId, apiToken, ghToken) {
-    localStorage.setItem(STORAGE_KEYS.accountId, accountId.trim());
-    localStorage.setItem(STORAGE_KEYS.apiToken, apiToken.trim());
-    localStorage.setItem(STORAGE_KEYS.ghToken, (ghToken || '').trim());
+  function saveConfig(accountId, apiToken, ghToken, vercelToken) {
+    localStorage.setItem(STORAGE_KEYS.accountId,   accountId.trim());
+    localStorage.setItem(STORAGE_KEYS.apiToken,    apiToken.trim());
+    localStorage.setItem(STORAGE_KEYS.ghToken,     (ghToken || '').trim());
+    localStorage.setItem(STORAGE_KEYS.vercelToken, (vercelToken || '').trim());
   }
 
   function hasConfig() {
@@ -211,7 +244,7 @@
       // PIN 분실 — 다음 unlock까지 서버 동기화 보류.
       return;
     }
-    const { accountId, apiToken, ghToken } = getConfig();
+    const { accountId, apiToken, ghToken, vercelToken } = getConfig();
     if (!accountId || !apiToken) return;
     try {
       await fetch('/api/vault', {
@@ -222,6 +255,7 @@
           accountId,
           apiToken,
           ghToken,
+          vercelToken,
           favorites: [...favoriteProjects],
         }),
       });
@@ -268,6 +302,108 @@
       savedAt: Date.now(),
       apps,
     }));
+  }
+
+  // ── Quick Lobby (FAB + popup panel) ──
+  function normalizeAppName(name) {
+    return String(name || '').trim().toLowerCase();
+  }
+
+  async function loadQuickLobbyIcons() {
+    try {
+      const response = await fetch(`${QUICK_LOBBY_ICON_BASE}manifest.json`, { cache: 'no-cache' });
+      if (!response.ok) return;
+      const parsed = await response.json();
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+
+      const byName = {};
+      Object.entries(parsed).forEach(([appName, file]) => {
+        const key = normalizeAppName(appName);
+        if (key && typeof file === 'string' && file) {
+          byName[key] = file;
+        }
+      });
+      quickLobbyIconsByName = byName;
+      renderQuickLobby();
+    } catch {
+      // offline/file:// — gradient+initial fallback keeps working.
+    }
+  }
+
+  // Same seed hash as lobby.js so fallback gradients match the lobby page.
+  function hashAppName(str) {
+    let hash = 0;
+    const value = String(str || '');
+    for (let i = 0; i < value.length; i++) {
+      hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function quickLobbyPaletteFor(name) {
+    return QUICK_LOBBY_GRADIENTS[hashAppName(name) % QUICK_LOBBY_GRADIENTS.length];
+  }
+
+  function getAppInitial(name) {
+    const stripped = String(name || '').trim().replace(/^[\(\[][^\)\]]*[\)\]]\s*/, '');
+    return ([...stripped][0] || '?').toUpperCase();
+  }
+
+  function isQuickLobbyOpen() {
+    return Boolean(dom.quickLobby?.classList.contains('is-open'));
+  }
+
+  function setQuickLobbyOpen(isOpen, { persist = true } = {}) {
+    if (!dom.quickLobby) return;
+    dom.quickLobby.classList.toggle('is-open', isOpen);
+    dom.quickLobbyPanel.setAttribute('aria-hidden', String(!isOpen));
+    dom.quickLobbyFab.setAttribute('aria-expanded', String(isOpen));
+    dom.quickLobbyFab.setAttribute('aria-label', isOpen ? '퀵 로비 닫기' : '퀵 로비 열기');
+    if (persist) {
+      localStorage.setItem(STORAGE_KEYS.quickLobbyOpen, isOpen ? '1' : '0');
+    }
+  }
+
+  function toggleQuickLobby() {
+    setQuickLobbyOpen(!isQuickLobbyOpen());
+  }
+
+  function renderQuickLobby() {
+    if (!dom.quickLobbyGrid) return;
+
+    const favoriteApps = currentProjects.filter((project) => isFavoriteProject(project.name));
+
+    if (favoriteApps.length === 0) {
+      dom.quickLobbyGrid.innerHTML = '';
+      dom.quickLobbyGrid.style.display = 'none';
+      dom.quickLobbyEmpty.style.display = 'block';
+      return;
+    }
+
+    dom.quickLobbyEmpty.style.display = 'none';
+    dom.quickLobbyGrid.style.display = 'grid';
+    dom.quickLobbyGrid.innerHTML = favoriteApps.map((project) => {
+      const primaryUrl = getPrimaryUrl(project);
+      const iconFile = quickLobbyIconsByName[normalizeAppName(project.name)] || '';
+      const iconMarkup = iconFile
+        ? `<span class="quicklobby-tile__icon quicklobby-tile__icon--svg"><img src="${escapeAttribute(QUICK_LOBBY_ICON_BASE + iconFile)}" alt="" loading="lazy"></span>`
+        : (() => {
+            const palette = quickLobbyPaletteFor(project.name);
+            return `<span class="quicklobby-tile__icon" style="background: linear-gradient(135deg, ${palette.from}, ${palette.to});">${escapeHtml(getAppInitial(project.name))}</span>`;
+          })();
+
+      const tag = primaryUrl ? 'a' : 'button';
+      const linkAttrs = primaryUrl
+        ? `href="${escapeAttribute(primaryUrl)}" target="_blank" rel="noopener noreferrer"`
+        : 'type="button" disabled aria-disabled="true" title="연결된 주소 없음"';
+
+      return `
+        <${tag} class="quicklobby-tile" ${linkAttrs} aria-label="${escapeAttribute(project.name)} 열기">
+          ${iconMarkup}
+          <span class="quicklobby-tile__name" title="${escapeAttribute(project.name)}">${escapeHtml(project.name)}</span>
+        </${tag}>
+      `;
+    }).join('');
   }
 
   function isVaultLinked() {
@@ -346,6 +482,7 @@
     }
 
     showState('empty');
+    renderQuickLobby();
   }
 
   function setLoading(isLoading) {
@@ -381,11 +518,12 @@
   }
 
   function openModal() {
-    const { accountId, apiToken, ghToken } = getConfig();
+    const { accountId, apiToken, ghToken, vercelToken } = getConfig();
     lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dom.inputAccountId.value = accountId;
     dom.inputApiToken.value = apiToken;
     dom.inputGhToken.value = ghToken;
+    dom.inputVercelToken.value = vercelToken;
     updateVaultUI();
     dom.modalOverlay.classList.add('is-open');
     dom.modalOverlay.setAttribute('aria-hidden', 'false');
@@ -522,7 +660,7 @@
 
   // ── API ──
   async function fetchProjects(signal) {
-    const { accountId, apiToken, ghToken } = getConfig();
+    const { accountId, apiToken, ghToken, vercelToken } = getConfig();
     const headers = {
       'X-CF-Account-Id': accountId,
       'X-CF-Api-Token': apiToken,
@@ -530,6 +668,10 @@
 
     if (ghToken) {
       headers['X-GH-Token'] = ghToken;
+    }
+
+    if (vercelToken) {
+      headers['X-Vercel-Api-Token'] = vercelToken;
     }
 
     const response = await fetch('/api/projects', { headers, signal });
@@ -597,8 +739,9 @@
       dom.inputAccountId.value = credentials.accountId || '';
       dom.inputApiToken.value = credentials.apiToken || '';
       dom.inputGhToken.value = credentials.ghToken || '';
+      dom.inputVercelToken.value = credentials.vercelToken || '';
 
-      saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken);
+      saveConfig(credentials.accountId, credentials.apiToken, credentials.ghToken, credentials.vercelToken);
       setVaultLinked(true);
       setVaultPin(pin);
       if (Array.isArray(credentials.favorites)) {
@@ -620,6 +763,7 @@
     const accountId = dom.inputAccountId.value.trim();
     const apiToken = dom.inputApiToken.value.trim();
     const ghToken = dom.inputGhToken.value.trim();
+    const vercelToken = dom.inputVercelToken.value.trim();
     const pin = dom.inputVaultPinSave.value.trim();
     const pinConfirm = dom.inputVaultPinConfirm.value.trim();
 
@@ -652,6 +796,7 @@
           accountId,
           apiToken,
           ghToken,
+          vercelToken,
           favorites: [...favoriteProjects],
         }),
       });
@@ -688,6 +833,7 @@
     const accountId = dom.inputAccountId.value.trim();
     const apiToken = dom.inputApiToken.value.trim();
     const ghToken = dom.inputGhToken.value.trim();
+    const vercelToken = dom.inputVercelToken.value.trim();
 
     if (!accountId || !apiToken) {
       showToast('Account ID와 API Token을 먼저 입력해주세요.', 'error');
@@ -705,6 +851,7 @@
           accountId,
           apiToken,
           ghToken,
+          vercelToken,
           favorites: [...favoriteProjects],
         }),
       });
@@ -1329,9 +1476,11 @@
       const displayUrl = primaryUrl ? primaryUrl.replace(/^https?:\/\//, '') : '연결된 주소 없음';
       const isFavorite = isFavoriteProject(project.name);
       const isWorker = project._type === 'worker';
+      const isVercel = project._type === 'vercel';
       const meta = [
         `<span class="card__tag card__tag--${radar.severity}">${escapeHtml(radar.label)}</span>`,
         isWorker ? '<span class="card__tag card__tag--worker">Worker</span>' : '',
+        isVercel ? '<span class="card__tag card__tag--vercel">Vercel</span>' : '',
         framework ? `<span class="card__tag">${escapeHtml(framework)}</span>` : '',
         domains.length > 0 ? `<span class="card__tag">${domains.length}개 도메인</span>` : '<span class="card__tag card__tag--muted">도메인 미연결</span>',
       ].filter(Boolean).join('');
@@ -1421,6 +1570,7 @@
     renderRadar(currentProjects);
 
     renderProjects(getVisibleProjects());
+    renderQuickLobby();
   }
 
   // ── Load ──
@@ -1477,6 +1627,7 @@
       const parts = [];
       if (meta.pagesCount) parts.push(`Pages ${meta.pagesCount}개`);
       if (meta.workersCount) parts.push(`Workers ${meta.workersCount}개`);
+      if (meta.vercelCount) parts.push(`Vercel ${meta.vercelCount}개`);
       const summary = parts.length > 0 ? parts.join(' + ') : `${projectList.length}개 프로젝트`;
       showToast(`${summary}를 불러왔습니다.`, 'success');
 
@@ -1486,6 +1637,10 @@
 
       if (meta.workersError) {
         showToast('Workers 조회 실패: API 토큰에 Workers Scripts:Read 권한을 추가하세요.', 'error');
+      }
+
+      if (meta.vercelError) {
+        showToast('Vercel 조회 실패: 토큰을 확인해주세요.', 'error');
       }
     } catch (err) {
       if (err.name === 'AbortError' || requestId !== latestLoadRequestId) return;
@@ -1514,13 +1669,14 @@
     const accountId = dom.inputAccountId.value.trim();
     const apiToken = dom.inputApiToken.value.trim();
     const ghToken = dom.inputGhToken.value.trim();
+    const vercelToken = dom.inputVercelToken.value.trim();
 
     if (!accountId || !apiToken) {
       showToast('Account ID와 API Token을 모두 입력해주세요.', 'error');
       return;
     }
 
-    saveConfig(accountId, apiToken, ghToken);
+    saveConfig(accountId, apiToken, ghToken, vercelToken);
     closeModal();
     showToast('설정이 저장되었습니다.', 'success');
     loadProjects(true);
@@ -1562,6 +1718,10 @@
       }
       if (isModalOpen()) {
         closeModal();
+        return;
+      }
+      if (isQuickLobbyOpen()) {
+        setQuickLobbyOpen(false);
         return;
       }
     }
@@ -1675,6 +1835,9 @@
       });
     }
 
+    // Quick lobby events
+    if (dom.quickLobbyFab) dom.quickLobbyFab.addEventListener('click', toggleQuickLobby);
+
     document.addEventListener('keydown', handleDocumentKeydown);
     window.addEventListener('beforeunload', () => activeFetchController?.abort());
   }
@@ -1683,7 +1846,11 @@
   function init() {
     bindEvents();
     setToolbarActionsEnabled(false);
+    setQuickLobbyOpen(localStorage.getItem(STORAGE_KEYS.quickLobbyOpen) === '1', { persist: false });
+    renderQuickLobby();
+    loadQuickLobbyIcons();
     loadProjects();
+    window.__READY = true; // headless screenshot hook (same as lobby.js)
   }
 
   if (document.readyState === 'loading') {

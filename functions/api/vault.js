@@ -141,7 +141,7 @@ export async function onRequest(context) {
       );
     }
 
-    const { pin, accountId, apiToken, ghToken, favorites } = body;
+    const { pin, accountId, apiToken, ghToken, vercelToken, favorites } = body;
 
     if (!validatePin(pin)) {
       return jsonResponse(
@@ -172,6 +172,7 @@ export async function onRequest(context) {
       accountId,
       apiToken,
       ghToken: ghToken || '',
+      vercelToken: vercelToken || '',
       favorites: normalizedFavorites,
     };
     const encrypted = await encryptCredentials(pin, credentials);

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "updatedAt": "2026-08-31",
+  "note": "jacehub 정문 카탈로그 — git이 정본. 여기 없는 프로젝트는 관제 레이어 격납고에 '미등록'으로 접힘. 내부 서비스(CF Access 뒤)는 이 파일에 넣지 않는다 — functions/api/projects.js SELF_HOSTED_SERVICES로만 합류.",
+  "sections": [
+    { "key": "game",       "emoji": "🎮", "label": "게임",          "blurb": "플레이하러 들어가는 것들",          "front": true },
+    { "key": "life",       "emoji": "🏠", "label": "생활·생산성",   "blurb": "매일 쓰는 생활 앱",                 "front": true },
+    { "key": "tool",       "emoji": "🛠", "label": "도구·작업장",   "blurb": "만들고 정리하는 도구",              "front": true },
+    { "key": "archive",    "emoji": "📼", "label": "기록·아카이브", "blurb": "모아둔 기록·컬렉션·데모",           "front": true },
+    { "key": "huchu",      "emoji": "🦎", "label": "후추네",        "blurb": "후추 게코 가족",                    "front": true },
+    { "key": "unreviewed", "emoji": "🔍", "label": "미검수",        "blurb": "파트너 검수 전 — 검수 후 정문 승격", "front": false },
+    { "key": "retire",     "emoji": "🪦", "label": "퇴역 후보",     "blurb": "퇴역 결정 대기",                    "front": false },
+    { "key": "hangar",     "emoji": "🗄", "label": "격납고",        "blurb": "인프라·목업·복제본·퇴역 — 정문 제외", "front": false }
+  ],
+  "apps": [
+    { "slug": "crazy-dice",       "name": "CRAZY SLOT",        "tag": "플레이어블 슬롯 목업",      "section": "game",    "url": "https://crazy-dice.pages.dev" },
+    { "slug": "yggdrasil-demo",   "name": "이그드라실",         "tag": "그래픽 데모",               "section": "game",    "url": "https://yggdrasil-demo-4hm.pages.dev" },
+    { "slug": "lumi-nightfall",   "name": "나이트폴",           "tag": "루미 턴제 SRPG 웹 이식판",  "section": "game",    "url": "https://lumi-nightfall.pages.dev" },
+    { "slug": "youtubewc",        "name": "유튜브뮤직 월드컵",   "tag": "음악 이상형 월드컵",        "section": "game",    "url": "https://youtubemusicwc.jaceyoung0705.workers.dev", "type": "worker", "cfName": "youtubemusicwc" },
+
+    { "slug": "jacemaster",       "name": "제이스마스터",       "tag": "14앱 통합 생활 PWA",        "section": "life",    "url": "https://jacemaster.pages.dev" },
+    { "slug": "weneedstress",     "name": "위니드스트레스",     "tag": "운동·식단 통합 관리",       "section": "life",    "url": "https://weneedstress.pages.dev" },
+    { "slug": "roommanager",      "name": "방 매니저",          "tag": "캔버스 방·물품 인벤토리",    "section": "life",    "url": "https://roommanager.pages.dev" },
+    { "slug": "learneverything",  "name": "런에브리씽",         "tag": "키워드·문장 학습",          "section": "life",    "url": "https://learneverything.pages.dev" },
+
+    { "slug": "jacepages",        "name": "제이스 페이지",      "tag": "HTML 가이드·리포트 허브",   "section": "tool",    "url": "https://jacepages.pages.dev" },
+    { "slug": "jacewiki",         "name": "제이스 위키",        "tag": "앱·게임 문서 위키",         "section": "tool",    "url": "https://jacewiki.pages.dev" },
+    { "slug": "jacefiles",        "name": "주머니",             "tag": "기기 간 파일함",            "section": "tool",    "url": "https://jacefiles.pages.dev" },
+
+    { "slug": "kyou",             "name": "響 쿄우",            "tag": "수묵 검객 액션 데모",       "section": "archive", "url": "https://kyou-er1.pages.dev" },
+    { "slug": "fateweaver",       "name": "페이트위버",         "tag": "AI GM 텍스트 RPG",          "section": "archive", "url": "https://fateweaver.pages.dev" },
+    { "slug": "jaceskills-manual","name": "스킬 매뉴얼",        "tag": "CC 스킬 사용 설명서",       "section": "archive", "url": "https://jaceskills-manual.pages.dev" },
+    { "slug": "akashicrecords",   "name": "아카식 레코드",      "tag": "개인 게임 정보 허브",       "section": "archive", "url": "https://akashicrecords.pages.dev" },
+    { "slug": "lifesong-timecapsule","name": "인생곡 타임캡슐", "tag": "플레이리스트 스냅샷",       "section": "archive", "url": "https://lifesong-timecapsule.pages.dev" },
+    { "slug": "blurryjourney",    "name": "블러리 저니",        "tag": "나만의 여행 이야기",        "section": "archive", "url": "https://blurryjourney.jaceyoung0705.workers.dev", "type": "worker" },
+
+    { "slug": "hoochoobothome",   "name": "후추네 가족",        "tag": "후추봇 홈",                 "section": "huchu",   "url": "https://hoochoobothome.pages.dev" },
+    { "slug": "huchu-carelog",    "name": "후추 케어 원장",     "tag": "탈피·급여·체중 기록",       "section": "huchu",   "url": "https://huchu-carelog.pages.dev" },
+    { "slug": "huchu-boardgames", "name": "후추 보드게임",      "tag": "보드게임 모음",             "section": "huchu",   "url": "https://huchu-boardgames.pages.dev" },
+
+    { "slug": "maai",             "name": "마아이(間合)",        "tag": "격투 심리전 턴제",          "section": "unreviewed", "url": "https://maai-32m.pages.dev" },
+    { "slug": "botarena",         "name": "봇 콜로세움",        "tag": "코드로 싸우는 봇 아레나",    "section": "unreviewed", "url": "https://botarena-74u.pages.dev" },
+    { "slug": "casebook",         "name": "한 밤의 사건부",     "tag": "연역 미스터리 12건",        "section": "unreviewed", "url": "https://casebook-5dy.pages.dev" },
+    { "slug": "voiceclimb",       "name": "목청 등반",          "tag": "음높이로 오르는 60초",      "section": "unreviewed", "url": "https://voiceclimb.pages.dev" },
+    { "slug": "command-dojo",     "name": "커맨드 도장",        "tag": "격투 커맨드 입력 트레이너", "section": "unreviewed", "url": "https://command-dojo.pages.dev" },
+    { "slug": "magazine-stand",   "name": "잡지 가판대",        "tag": "AI 생성 잡지 서가",         "section": "unreviewed", "url": "https://magazine-stand.pages.dev" },
+    { "slug": "steam-chronicle",  "name": "스팀 14년 연대기",   "tag": "플레이 기록 아카이브",      "section": "unreviewed", "url": "https://steam-chronicle.pages.dev" },
+
+    { "slug": "yongin-bezanson-2026","name": "베잔송 2026",     "tag": "8월 게임여행 운영 페이지",  "section": "retire",  "url": "https://yongin-bezanson-2026.pages.dev" },
+    { "slug": "fighting-combo-archive","name": "격투 콤보 아카이브","tag": "콤보·기술 큐레이션",   "section": "retire",  "url": "https://fighting-combo-archive.pages.dev" },
+
+    { "slug": "lumi-gamelab",     "name": "루미 게임연구소",    "tag": "루미 웹게임 모음",          "section": "hangar",  "url": "https://lumi-gamelab.pages.dev" },
+    { "slug": "nf-gates",         "name": "NF 게이트",          "tag": "팀 결정 게이트 허브",       "section": "hangar",  "url": "https://nf-gates.pages.dev" },
+    { "slug": "jacegates",        "name": "제이스 게이트",      "tag": "개인 결정 게이트 허브",     "section": "hangar",  "url": "https://jacegates.pages.dev" },
+    { "slug": "nf-board",         "name": "NF 보드",            "tag": "",                          "section": "hangar",  "url": "https://nf-board.pages.dev" },
+    { "slug": "jacebench",        "name": "제이스벤치",         "tag": "모델 벤치 리더보드",        "section": "hangar",  "url": "https://jacebench.pages.dev" },
+    { "slug": "jace-catalog",     "name": "jace 카탈로그",      "tag": "터미널·tmux 솔루션 카탈로그","section": "hangar", "url": "https://jace-catalog.pages.dev" },
+    { "slug": "game-mockups",     "name": "게임 목업 갤러리",   "tag": "gmock 산출물 모음",         "section": "hangar",  "url": "https://game-mockups.pages.dev" },
+    { "slug": "app-mockups",      "name": "앱 목업 갤러리",     "tag": "amock 산출물 모음",         "section": "hangar",  "url": "https://app-mockups.pages.dev" },
+    { "slug": "lumi-b19-hub",     "name": "루미 B19 허브",      "tag": "방송 산출물 허브",          "section": "hangar",  "url": "https://lumi-b19-hub.pages.dev" },
+    { "slug": "hoochoobothome-beta","name": "후추네 베타",      "tag": "베타 복제본",               "section": "hangar",  "url": "https://hoochoobothome-beta.pages.dev" },
+    { "slug": "bestserveddish",   "name": "베스트서브드디시",   "tag": "8/29 퇴역 — 301만 서빙",    "section": "hangar",  "url": "https://bestserveddish.pages.dev" },
+    { "slug": "refboard",         "name": "레프보드",           "tag": "미배포",                    "section": "hangar",  "url": "" },
+    { "slug": "jacehub",          "name": "제이스허브",         "tag": "이 허브 자신",              "section": "hangar",  "url": "https://jacehub.pages.dev" }
+  ]
+}

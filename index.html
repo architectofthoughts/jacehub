@@ -1,294 +1,186 @@
-<!DOCTYPE html>
-<html lang="ko">
+<!doctype html>
+<html lang="ko" data-jd-theme="F01">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JaceHub — Cloudflare Pages Dashboard</title>
-  <meta name="description" content="Cloudflare Pages로 배포한 모든 사이트를 한 곳에서 모아보는 허브 대시보드">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JaceHub — 정문</title>
+<meta name="description" content="제이스의 웹앱들이 모이는 정문. 아이콘 런처 + 관제 레이어.">
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23201e1a'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Georgia,serif' font-weight='700' font-size='36' fill='%23f6f1e6'%3EJ%3C/text%3E%3Ccircle cx='47' cy='42' r='4' fill='%23c46442'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<div class="wrap">
 
-  <!-- ═══════════════ Header ═══════════════ -->
-  <header class="header" id="header">
-    <div class="header__inner">
-      <div class="header__brand">
-        <div class="header__logo">
-          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="8" fill="url(#logo-grad)"/>
-            <path d="M8 16L14 10L20 16L14 22Z" fill="white" opacity="0.9"/>
-            <path d="M14 16L20 10L26 16L20 22Z" fill="white" opacity="0.6"/>
-            <defs>
-              <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32">
-                <stop stop-color="#FF7B54"/>
-                <stop offset="1" stop-color="#FF4B4B"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <h1 class="header__title">JaceHub</h1>
+  <!-- ============ 마스트헤드 ============ -->
+  <header class="mast">
+    <div class="dateline">
+      <span>JaceHub · 정문 · Front Gate</span>
+      <span class="rt"><span>Catalog v<span id="dl-ver">—</span></span><span>·</span><span id="dl-date">—</span></span>
+    </div>
+    <div class="mast-row">
+      <div class="wordmark">
+        <h1>JaceHub<span class="period">.</span></h1>
+        <div class="tag">파트너의 앱들이 모이는 정문<span class="tag-x"> — 종이 위의 런처</span></div>
       </div>
-      <div class="header__actions">
-        <a class="btn btn--ghost btn--toolbar" href="/lobby.html" title="공개 로비 페이지 열기">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-          </svg>
-          <span>Lobby</span>
-        </a>
-        <button class="btn btn--ghost" id="btn-refresh" type="button" title="새로고침" aria-label="프로젝트 새로고침">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
+      <div class="controls">
+        <button class="switch" id="ops-toggle" type="button" role="switch" aria-checked="false" aria-label="관제 레이어" title="관제 레이어 (토큰 필요)">
+          <span>관제</span><span class="track" aria-hidden="true"></span>
         </button>
-        <button class="btn btn--primary" id="btn-settings" type="button">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="gear" id="btn-settings" type="button" aria-label="설정" title="설정 · 토큰 · 보관소">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span>설정</span>
         </button>
       </div>
     </div>
+    <div class="rule2" aria-hidden="true"></div>
   </header>
 
-  <!-- ═══════════════ Main Content ═══════════════ -->
-  <main class="main" id="main">
-    <!-- Stats Bar -->
-    <div class="stats" id="stats" style="display:none;" aria-live="polite">
-      <div class="stats__item">
-        <span class="stats__value" id="stat-total">0</span>
-        <span class="stats__label">전체 프로젝트</span>
-      </div>
-      <div class="stats__item">
-        <span class="stats__value" id="stat-attention">0</span>
-        <span class="stats__label">주의 필요</span>
-      </div>
-      <div class="stats__item">
-        <span class="stats__value" id="stat-active">0</span>
-        <span class="stats__label">활성 배포</span>
-      </div>
-      <div class="stats__item">
-        <span class="stats__value" id="stat-domains">0</span>
-        <span class="stats__label">커스텀 도메인</span>
-      </div>
+  <!-- ============ 고정 행 ============ -->
+  <section class="pinned rv" id="pinned" aria-label="고정 앱">
+    <div class="lbl">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3l5 5-4 1-3 3 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 3-3z"/></svg>
+      <span>PINNED · 고정</span>
     </div>
+    <div class="pinrow" id="pinrow"></div>
+  </section>
 
-    <section class="radar" id="radar" style="display:none;" aria-label="실험용 배포 레이더">
-      <div class="radar__hero">
-        <div class="radar__copy">
-          <p class="radar__eyebrow">Experimental Radar</p>
-          <h2 class="radar__title">배포 우선순위를 먼저 확인하세요</h2>
-          <p class="radar__summary" id="radar-summary">프로젝트 신호를 분석하는 중입니다.</p>
-        </div>
-        <div class="radar__pulse">
-          <div class="radar-metric">
-            <span class="radar-metric__label">즉시 확인</span>
-            <strong class="radar-metric__value" id="radar-metric-attention">0</strong>
-          </div>
-          <div class="radar-metric">
-            <span class="radar-metric__label">정체 프로젝트</span>
-            <strong class="radar-metric__value" id="radar-metric-stale">0</strong>
-          </div>
-          <div class="radar-metric">
-            <span class="radar-metric__label">최근 7일 배포</span>
-            <strong class="radar-metric__value" id="radar-metric-fresh">0</strong>
-          </div>
-        </div>
-      </div>
-      <div class="radar__board">
-        <div class="radar__highlights" id="radar-highlights"></div>
-        <div class="radar__filters">
-          <p class="radar__filters-title">Quick Filters</p>
-          <div class="radar__chips" id="radar-chips" role="group" aria-label="레이더 빠른 필터"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="toolbar" id="toolbar" style="display:none;" aria-label="프로젝트 탐색 도구">
-      <label class="search-field" for="input-search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"/>
-          <path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input class="search-field__input" id="input-search" type="search" placeholder="프로젝트 이름, 설명, 도메인 검색">
-      </label>
-      <div class="toolbar__controls">
-        <label class="toolbar__select">
-          <span>상태</span>
-          <select id="filter-status">
-            <option value="all">전체 상태</option>
-            <option value="favorites">즐겨찾기</option>
-            <option value="success">활성</option>
-            <option value="active">진행 중</option>
-            <option value="failure">실패</option>
-          </select>
-        </label>
-        <label class="toolbar__select">
-          <span>정렬</span>
-          <select id="sort-projects">
-            <option value="recent">최근 배포순</option>
-            <option value="attention">레이더 우선순위</option>
-            <option value="name">이름순</option>
-            <option value="domains">도메인 많은 순</option>
-          </select>
-        </label>
-      </div>
-      <div class="toolbar__actions" aria-label="현재 목록 액션">
-        <button class="btn btn--ghost btn--toolbar" id="btn-copy-report" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 17H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/>
-            <rect x="9" y="9" width="10" height="10" rx="2"/>
-          </svg>
-          <span>보고서 복사</span>
-        </button>
-        <button class="btn btn--ghost btn--toolbar" id="btn-export-csv" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <path d="M7 10l5 5 5-5"/>
-            <path d="M12 15V3"/>
-          </svg>
-          <span>CSV 내보내기</span>
-        </button>
-      </div>
-      <p class="toolbar__summary" id="toolbar-summary">0개 표시</p>
-    </section>
-
-    <!-- Loading State -->
-    <div class="state state--loading" id="state-loading" style="display:none;" role="status" aria-live="polite">
-      <div class="spinner"></div>
-      <p>프로젝트를 불러오는 중...</p>
-    </div>
-
-    <!-- Empty State (no config) -->
-    <div class="state state--empty" id="state-empty">
-      <div class="state__icon">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-          <line x1="8" y1="21" x2="16" y2="21"/>
-          <line x1="12" y1="17" x2="12" y2="21"/>
-        </svg>
-      </div>
-      <h2 id="state-empty-title">Cloudflare 계정을 연결하세요</h2>
-      <p id="state-empty-message">설정에서 Account ID와 API Token을 입력하면<br>배포한 모든 사이트를 한눈에 볼 수 있습니다.</p>
-      <button class="btn btn--primary btn--lg" id="btn-setup" type="button">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        계정 연결하기
-      </button>
-    </div>
-
-    <!-- Error State -->
-    <div class="state state--error" id="state-error" style="display:none;" role="alert" aria-live="assertive">
-      <div class="state__icon state__icon--error">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-      </div>
-      <h2>연결에 실패했습니다</h2>
-      <p id="error-message">API Token 또는 Account ID를 확인해주세요.</p>
-      <button class="btn btn--primary btn--lg" id="btn-retry" type="button">다시 시도</button>
-    </div>
-
-    <!-- Project Grid -->
-    <div class="results-empty" id="results-empty" style="display:none;" aria-live="polite">
-      <strong>조건에 맞는 프로젝트가 없습니다</strong>
-      <p>검색어 또는 필터를 바꿔서 다시 찾아보세요.</p>
-    </div>
-    <div class="grid" id="project-grid" aria-live="polite"></div>
+  <!-- ============ 정문 섹션 (catalog.json 렌더) ============ -->
+  <main id="front" aria-busy="true">
+    <p class="loading mono" id="front-loading">catalog.json 불러오는 중…</p>
   </main>
 
-  <!-- ═══════════════ Settings Modal ═══════════════ -->
-  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
-    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-      <div class="modal__header">
-        <h2 id="settings-title">Cloudflare 계정 설정</h2>
-        <button class="modal__close" id="btn-modal-close" type="button" aria-label="설정 닫기">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+  <!-- ============ 관제 레이어 — 접힌 섹션 ============ -->
+  <div class="opsblock" id="opsblock" aria-label="관제 레이어">
+    <div class="lead"><span><b>관제</b> · BACKSTAGE</span><span id="ops-lead-note">기본 접힘 · 헤더를 눌러 펼침</span></div>
+    <div id="ops-secs"></div>
+  </div>
+
+  <!-- ============ 콜로폰 ============ -->
+  <footer class="colophon" id="colophon"></footer>
+</div>
+
+<!-- ============ 디테일 시트 ============ -->
+<dialog id="sheet" aria-labelledby="sh-name">
+  <div class="sheet" tabindex="-1">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="sbar">
+      <span class="pg" id="sh-pg"></span>
+      <div class="acts">
+        <button class="ib" id="sh-prev" type="button" aria-label="이전 앱"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <button class="ib" id="sh-next" type="button" aria-label="다음 앱"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="ib" id="sh-close" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <div class="modal__body">
-        <div class="form-group">
-          <label class="form-label" for="input-account-id">Account ID</label>
-          <input class="form-input" type="text" id="input-account-id" placeholder="Cloudflare 대시보드 → 우측 사이드바에서 복사">
-          <p class="form-hint">Workers & Pages → Overview 페이지 우측에서 확인할 수 있습니다.</p>
+    </div>
+    <div class="spread" id="spread">
+      <figure class="shot">
+        <div class="fr" id="sh-frame"></div>
+        <figcaption id="sh-cap"></figcaption>
+      </figure>
+      <div class="copy">
+        <div class="head"><div id="sh-ico"></div><div><div class="kick" id="sh-kick"></div></div></div>
+        <h3 id="sh-name"></h3>
+        <div class="sl" id="sh-slug"></div>
+        <p class="tg" id="sh-tag"></p>
+        <div class="rule" aria-hidden="true"></div>
+        <div class="dep"><span id="sh-dep"></span><span class="badge" id="sh-badge"></span></div>
+        <a class="btn-open" id="sh-open" target="_blank" rel="noopener noreferrer">
+          <span>열기</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9"/></svg>
+        </a>
+        <div class="row2">
+          <button class="btn-copy" id="sh-copy" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            <span>주소 복사</span>
+          </button>
+          <button class="btn-copy btn-pin" id="sh-pin" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3l5 5-4 1-3 3 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 3-3z"/></svg>
+            <span id="sh-pin-label">고정</span>
+          </button>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="input-api-token">API Token</label>
-          <input class="form-input" type="password" id="input-api-token" placeholder="Pages + Workers 읽기 권한이 있는 API Token">
-          <p class="form-hint">My Profile → API Tokens → Custom Token → Pages:Read + Workers Scripts:Read 권한 필요</p>
+        <div class="turn">
+          <button class="pv" id="t-prev" type="button"><span class="k">◀ PREV</span><span class="v"></span></button>
+          <button class="nx" id="t-next" type="button"><span class="k">NEXT ▶</span><span class="v"></span></button>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="input-gh-token">GitHub Token <span style="font-weight:400;color:#94A3B8">(선택)</span></label>
-          <input class="form-input" type="password" id="input-gh-token" placeholder="Private repo의 설명을 가져오려면 입력">
-          <p class="form-hint">GitHub → Settings → Developer settings → Personal access tokens → repo 권한</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="input-vercel-token">Vercel API Token <span style="font-weight:400;color:#94A3B8">(선택)</span></label>
-          <input class="form-input" type="password" id="input-vercel-token" placeholder="Vercel에 배포한 프로젝트도 함께 보려면 입력">
-          <p class="form-hint">Vercel → Account Settings → Tokens → Create. Hobby 계정이면 Full Account 스코프로 OK.</p>
-        </div>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ 설정 모달 (토큰 · 클라우드 보관소) ============ -->
+<dialog id="settings" aria-labelledby="settings-title">
+  <div class="modal" tabindex="-1">
+    <div class="modal__header">
+      <div>
+        <div class="kick">SETTINGS · 관제 연결</div>
+        <h2 id="settings-title">토큰 · 보관소</h2>
+      </div>
+      <button class="ib" id="btn-modal-close" type="button" aria-label="설정 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="modal__body">
+      <p class="modal__intro">Cloudflare 토큰을 넣으면 정문 위에 <b>관제 레이어</b>(배포 상태점 · 미검수 · 퇴역 후보 · 격납고 · 내부)가 켜집니다. 토큰은 이 기기의 localStorage에만 저장돼요.</p>
+      <div class="form-group">
+        <label class="form-label" for="input-account-id">Account ID</label>
+        <input class="form-input" type="text" id="input-account-id" placeholder="Cloudflare 대시보드 → 우측 사이드바에서 복사" autocomplete="off" spellcheck="false">
+        <p class="form-hint">Workers & Pages → Overview 페이지 우측에서 확인할 수 있습니다.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="input-api-token">API Token</label>
+        <input class="form-input" type="password" id="input-api-token" placeholder="Pages + Workers 읽기 권한이 있는 API Token" autocomplete="off">
+        <p class="form-hint">My Profile → API Tokens → Custom Token → Pages:Read + Workers Scripts:Read (+ Cloudflare Tunnel:Read면 내부 서비스 헬스까지)</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="input-gh-token">GitHub Token <span class="opt">(선택)</span></label>
+        <input class="form-input" type="password" id="input-gh-token" placeholder="Private repo의 설명을 가져오려면 입력" autocomplete="off">
+        <p class="form-hint">GitHub → Settings → Developer settings → Personal access tokens → repo 권한</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="input-vercel-token">Vercel API Token <span class="opt">(선택)</span></label>
+        <input class="form-input" type="password" id="input-vercel-token" placeholder="Vercel에 배포한 프로젝트도 함께 보려면 입력" autocomplete="off">
+        <p class="form-hint">Vercel → Account Settings → Tokens → Create. Hobby 계정이면 Full Account 스코프로 OK.</p>
       </div>
 
       <!-- ═══ Vault Section ═══ -->
-      <div class="vault-section" id="vault-section">
-        <div class="vault-divider">
-          <span>클라우드 보관소</span>
-        </div>
+      <section class="vault-section" id="vault-section" aria-labelledby="vault-title">
+        <div class="vault-divider"><span id="vault-title">클라우드 보관소 · VAULT</span></div>
 
-        <!-- Vault Status (shown when vault has been used on this device) -->
-        <div class="vault-status" id="vault-status" style="display:none;">
+        <!-- 보관소 연결됨 (이 기기에서 볼트를 쓴 적 있음) -->
+        <div class="vault-status" id="vault-status" hidden>
           <div class="vault-status__badge">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span>보관소 연결됨</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>보관소 연결됨 — 고정 앱이 PIN 봉투로 동기됩니다</span>
           </div>
           <div class="vault-status__actions">
             <button class="btn btn--ghost btn--sm" id="btn-vault-update" type="button">현재 설정으로 덮어쓰기</button>
-            <button class="btn btn--ghost btn--sm btn--danger-text" id="btn-vault-delete" type="button">보관소 삭제</button>
+            <button class="btn btn--ghost btn--sm btn--danger" id="btn-vault-delete" type="button">보관소 삭제</button>
           </div>
         </div>
 
-        <!-- Vault Form (shown when no vault is linked) -->
+        <!-- 보관소 미연결 -->
         <div class="vault-form" id="vault-form">
-          <!-- Tab toggle -->
           <div class="vault-tabs" role="tablist">
             <button class="vault-tab is-active" id="vault-tab-load" type="button" role="tab" aria-selected="true" aria-controls="vault-panel-load">불러오기</button>
             <button class="vault-tab" id="vault-tab-save" type="button" role="tab" aria-selected="false" aria-controls="vault-panel-save">새로 저장</button>
           </div>
 
-          <!-- Load Panel -->
           <div class="vault-panel" id="vault-panel-load" role="tabpanel" aria-labelledby="vault-tab-load">
-            <p class="vault-hint">저장할 때 설정한 6자리 PIN을 입력하면 인증 정보를 불러옵니다.</p>
+            <p class="vault-hint">저장할 때 설정한 6자리 PIN을 입력하면 토큰과 고정 앱 목록을 불러옵니다.</p>
             <div class="form-group">
               <label class="form-label" for="input-vault-pin-load">PIN (6자리)</label>
               <input class="form-input pin-input" type="password" id="input-vault-pin-load" placeholder="••••••" maxlength="6" inputmode="numeric" pattern="\d{6}" autocomplete="off">
             </div>
-            <button class="btn btn--primary btn--block" id="btn-vault-load" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              클라우드에서 불러오기
-            </button>
+            <button class="btn btn--primary btn--block" id="btn-vault-load" type="button">클라우드에서 불러오기</button>
           </div>
 
-          <!-- Save Panel -->
-          <div class="vault-panel" id="vault-panel-save" role="tabpanel" aria-labelledby="vault-tab-save" style="display:none;">
-            <p class="vault-hint">위에 입력한 인증 정보를 클라우드에 암호화하여 저장합니다.<br>6자리 PIN만 기억하면 어디서든 불러올 수 있습니다. 같은 PIN으로 저장하면 덮어쓰여집니다.</p>
+          <div class="vault-panel" id="vault-panel-save" role="tabpanel" aria-labelledby="vault-tab-save" hidden>
+            <p class="vault-hint">위에 입력한 토큰을 클라우드에 암호화해 저장합니다. 6자리 PIN만 기억하면 어디서든 불러올 수 있고, 같은 PIN으로 저장하면 덮어쓰입니다.</p>
             <div class="form-group">
               <label class="form-label" for="input-vault-pin-save">PIN 설정 (6자리 숫자)</label>
               <input class="form-input pin-input" type="password" id="input-vault-pin-save" placeholder="••••••" maxlength="6" inputmode="numeric" pattern="\d{6}" autocomplete="off">
@@ -297,91 +189,23 @@
               <label class="form-label" for="input-vault-pin-confirm">PIN 확인</label>
               <input class="form-input pin-input" type="password" id="input-vault-pin-confirm" placeholder="••••••" maxlength="6" inputmode="numeric" pattern="\d{6}" autocomplete="off">
             </div>
-            <button class="btn btn--primary btn--block" id="btn-vault-save" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              클라우드에 저장하기
-            </button>
+            <button class="btn btn--primary btn--block" id="btn-vault-save" type="button">클라우드에 저장하기</button>
           </div>
         </div>
-      </div>
-
-      <div class="modal__footer">
+      </section>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--ghost btn--danger" id="btn-clear-local" type="button" title="이 기기에 저장된 토큰을 지우고 관제를 끕니다">이 기기에서 지우기</button>
+      <div class="modal__footer-right">
         <button class="btn btn--ghost" id="btn-cancel" type="button">취소</button>
         <button class="btn btn--primary" id="btn-save" type="button">저장 및 연결</button>
       </div>
     </div>
   </div>
+</dialog>
 
-  <!-- ═══════════════ Lobby Meta Modal ═══════════════ -->
-  <div class="modal-overlay" id="meta-modal-overlay" aria-hidden="true">
-    <div class="modal modal--meta" id="meta-modal" role="dialog" aria-modal="true" aria-labelledby="meta-modal-title">
-      <div class="modal__header">
-        <h2 id="meta-modal-title">로비 정보 편집 — <span id="meta-modal-project" class="meta-modal__project"></span></h2>
-        <button class="modal__close" id="btn-meta-close" type="button" aria-label="모달 닫기">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      <div class="modal__body">
-        <p class="meta-modal__hint">이 정보는 로비 페이지에서 사용돼요. 비워두면 기본값(GitHub description, 이름 첫 글자)이 사용됩니다.</p>
-        <div class="form-group">
-          <label class="form-label" for="meta-input-desc">한 줄 설명</label>
-          <input class="form-input" type="text" id="meta-input-desc" placeholder="예: 다이어트 디데이 타이머" maxlength="80">
-          <p class="form-hint">로비 카드 아래에 표시되는 설명. 비우면 GitHub repo description 사용.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="meta-select-category">카테고리</label>
-          <select class="form-input" id="meta-select-category"></select>
-          <p class="form-hint">로비에서 카테고리 필터로 묶입니다.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="meta-input-icon">아이콘 (이모지)</label>
-          <div class="meta-icon-row">
-            <input class="form-input meta-icon-input" type="text" id="meta-input-icon" placeholder="🎮" maxlength="4">
-            <div class="meta-icon-preview" id="meta-icon-preview" aria-hidden="true">?</div>
-          </div>
-          <p class="form-hint">한 글자 이모지 추천. 비우면 이름의 첫 글자 + 자동 그라데이션 배경.</p>
-        </div>
-      </div>
-      <div class="modal__footer modal__footer--meta">
-        <button class="btn btn--ghost btn--danger-text" id="btn-meta-reset" type="button">초기화</button>
-        <div class="modal__footer-right">
-          <button class="btn btn--ghost" id="btn-meta-cancel" type="button">취소</button>
-          <button class="btn btn--primary" id="btn-meta-save" type="button">저장</button>
-        </div>
-      </div>
-    </div>
-  </div>
+<div class="toast-container" id="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
 
-  <!-- ═══════════════ Quick Lobby (FAB + popup) ═══════════════ -->
-  <div class="quicklobby" id="quicklobby">
-    <section class="quicklobby__panel" id="quicklobby-panel" role="dialog" aria-label="퀵 로비" aria-hidden="true">
-      <header class="quicklobby__header">
-        <h2 class="quicklobby__title">로비</h2>
-        <a class="quicklobby__more" href="lobby.html" title="전체 로비 페이지 열기">전체 로비 ↗</a>
-      </header>
-      <div class="quicklobby__body">
-        <div class="quicklobby__grid" id="quicklobby-grid"></div>
-        <p class="quicklobby__empty" id="quicklobby-empty" style="display:none;">즐겨찾기한 앱이 없어요 — 카드의 별을 눌러 추가해보세요.</p>
-      </div>
-    </section>
-    <button class="quicklobby__fab" id="quicklobby-fab" type="button" aria-label="퀵 로비 열기" aria-expanded="false" aria-controls="quicklobby-panel">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-      </svg>
-    </button>
-  </div>
-
-  <!-- ═══════════════ Toast ═══════════════ -->
-  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
-
-  <script src="app.js"></script>
+<script src="app.js" defer></script>
 </body>
 </html>

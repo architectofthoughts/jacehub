@@ -19,3 +19,6 @@ Desktop.ini
 # Env
 .env
 .env.local
+
+# QA 캡처(로컬 기록용, 레포 비대화 방지)
+docs/**/qa/

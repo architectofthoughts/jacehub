@@ -105,6 +105,15 @@
             <span id="sh-pin-label">고정</span>
           </button>
         </div>
+        <!-- 섹션 이동 — catalog.json 정본에 커밋 (GitHub 토큰 필요) -->
+        <div class="secmove" id="sh-secmove" hidden>
+          <div class="k">
+            <label for="sh-section">섹션 · SECTION</label>
+            <span class="secmove__state" id="sh-section-state" aria-live="polite"></span>
+          </div>
+          <select class="secmove__sel" id="sh-section" aria-describedby="sh-section-hint"></select>
+          <p class="secmove__hint" id="sh-section-hint"></p>
+        </div>
         <div class="turn">
           <button class="pv" id="t-prev" type="button"><span class="k">◀ PREV</span><span class="v"></span></button>
           <button class="nx" id="t-next" type="button"><span class="k">NEXT ▶</span><span class="v"></span></button>
@@ -138,8 +147,8 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="input-gh-token">GitHub Token <span class="opt">(선택)</span></label>
-        <input class="form-input" type="password" id="input-gh-token" placeholder="Private repo의 설명을 가져오려면 입력" autocomplete="off">
-        <p class="form-hint">GitHub → Settings → Developer settings → Personal access tokens → repo 권한</p>
+        <input class="form-input" type="password" id="input-gh-token" placeholder="레포 설명 조회 + 시트에서 섹션 이동(catalog.json 커밋)" autocomplete="off">
+        <p class="form-hint">GitHub → Settings → Developer settings → Personal access tokens. jacehub 레포에 <b>Contents: Read and write</b>(Classic은 repo)가 있으면 디테일 시트의 섹션 이동으로 catalog.json 정본을 커밋할 수 있어요.</p>
       </div>
       <div class="form-group">
         <label class="form-label" for="input-vercel-token">Vercel API Token <span class="opt">(선택)</span></label>

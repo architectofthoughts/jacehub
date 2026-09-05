@@ -10,7 +10,7 @@ const distDir = path.join(rootDir, 'dist');
 
 // 정적 화이트리스트 — 여기 없는 루트 파일은 dist에 올라가지 않는다.
 const staticEntries = ['index.html', 'style.css', 'app.js', 'catalog.json', 'retroarch-hotkeys.html'];
-const functionEntries = ['functions/api/projects.js', 'functions/api/vault.js'];
+const functionEntries = ['functions/api/projects.js', 'functions/api/vault.js', 'functions/api/catalog.js'];
 // 통째로 복사하는 디렉토리. required=false는 아직 없어도 빌드를 막지 않는다
 // (icons/·shots/는 별도 파이프라인 산출물이라 작업 중엔 비어 있을 수 있음).
 const directoryEntries = [

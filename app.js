@@ -14,6 +14,8 @@
   const CACHE_TTL_MS = 10 * 60 * 1000;
   const TOAST_DURATION_MS = 3000;
   const DAY_MS = 24 * 60 * 60 * 1000;
+  // 섹션 이동 낙관 반영의 수명 — 이 안에 배포된 정본이 같은 섹션을 말하지 않으면 버린다.
+  const PENDING_MOVE_TTL_MS = DAY_MS;
   // 정체 판정 — 리디자인에서 30일로 조정 (구 대시보드 21일). 시트 배지 라벨과 동일 값.
   const STALE_PROJECT_DAYS = 30;
   const DEFAULT_PINNED = ['jacemaster', 'weneedstress', 'jacepages', 'jacefiles'];
@@ -31,6 +33,7 @@
     vaultLinked: 'jacehub_vault_linked',
     vaultPin:    'jacehub_vault_pin',
     opsEnabled:  'jacehub_ops_enabled',
+    pendingMoves: 'jacehub_pending_moves',
   };
   // 폐기된 키 — 읽지 않고, 있으면 지운다.
   const LEGACY_STORAGE_KEYS = ['jacehub_lobby_cache', 'jacehub_lobby_meta', 'jacehub_quicklobby_open'];
@@ -74,6 +77,10 @@
     shCopy:       $('#sh-copy'),
     shPin:        $('#sh-pin'),
     shPinLabel:   $('#sh-pin-label'),
+    shSecmove:    $('#sh-secmove'),
+    shSection:    $('#sh-section'),
+    shSectionState: $('#sh-section-state'),
+    shSectionHint:  $('#sh-section-hint'),
     tPrev:        $('#t-prev'),
     tNext:        $('#t-next'),
     // 설정 모달
@@ -126,6 +133,9 @@
   // 볼트 동기
   let vaultSyncTimer = null;
   let lastVaultSyncBody = '';
+  // 섹션 이동 — 정본 커밋 후 배포 전까지의 낙관 반영 { slug: { section, at, sha } }
+  let pendingMoves = {};
+  let moveInFlight = false;
 
   // ── Utils ──
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -278,6 +288,53 @@
     favoriteSlugs.add(normalized);
     saveFavorites();
     return true;
+  }
+
+  // ── 섹션 이동 낙관 반영 (키 `jacehub_pending_moves`) ──
+  // /api/catalog로 정본을 커밋한 직후 ~ GH Actions 배포 완료 사이의 틈을 메운다.
+  // 배포된 catalog.json이 같은 섹션을 말하면 지우고, 24h가 지나도 안 오면(배포 실패·수동 되돌림) 버린다.
+  function loadPendingMoves() {
+    try {
+      const raw = JSON.parse(storageGet(STORAGE_KEYS.pendingMoves) || '{}');
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+      const next = {};
+      Object.entries(raw).forEach(([slug, entry]) => {
+        if (!entry || typeof entry.section !== 'string' || !entry.section) return;
+        next[slug] = { section: entry.section, at: Number(entry.at) || 0, sha: String(entry.sha || '') };
+      });
+      return next;
+    } catch {
+      return {};
+    }
+  }
+
+  function savePendingMoves() {
+    if (Object.keys(pendingMoves).length === 0) {
+      storageRemove(STORAGE_KEYS.pendingMoves);
+    } else {
+      storageSet(STORAGE_KEYS.pendingMoves, JSON.stringify(pendingMoves));
+    }
+  }
+
+  function reconcilePendingMoves() {
+    if (!catalog) return;
+    const now = Date.now();
+    let dirty = false;
+    Object.entries(pendingMoves).forEach(([slug, entry]) => {
+      const app = catalog.apps.find((item) => item.slug === slug);
+      const settled = !app || app.section === entry.section;
+      const expired = now - (entry.at || 0) > PENDING_MOVE_TTL_MS;
+      const unknownSection = !catalog.sections.some((section) => section.key === entry.section);
+      if (settled || expired || unknownSection) {
+        delete pendingMoves[slug];
+        dirty = true;
+      }
+    });
+    if (dirty) savePendingMoves();
+  }
+
+  function pendingCount() {
+    return Object.keys(pendingMoves).length;
   }
 
   // ── Vault link state ──
@@ -463,7 +520,12 @@
 
   function buildModel() {
     const sections = catalog.sections;
-    const catalogApps = catalog.apps.map((app) => ({ ...app, key: app.slug, catalog: true }));
+    // 섹션 이동 낙관 반영 — 정본 배포 전까지 pendingMoves가 section을 덮어쓴다 (원래 값은 sectionOrigin)
+    const catalogApps = catalog.apps.map((app) => {
+      const base = { ...app, key: app.slug, catalog: true };
+      const pending = pendingMoves[app.slug];
+      return pending ? { ...base, section: pending.section, sectionOrigin: app.section, pending: true } : base;
+    });
 
     // 라이브 매칭 — cfName → slug → URL 호스트(프로젝트명에 -4hm 같은 접미사가 붙은 경우)
     const liveByName = new Map();
@@ -527,7 +589,10 @@
     }
 
     const allApps = [...catalogApps, ...unregistered, ...internal];
-    const byKey = (sectionKey) => allApps.filter((app) => app.section === sectionKey);
+    // 옮겨 온 앱은 정본이 놓을 자리(그룹 끝)에 — 안정 정렬이라 나머지 순서는 그대로
+    const byKey = (sectionKey) => allApps
+      .filter((app) => app.section === sectionKey)
+      .sort((a, b) => Number(Boolean(a.pending)) - Number(Boolean(b.pending)));
 
     const frontSections = sections.filter((s) => s.front).map((sec) => ({ sec, apps: byKey(sec.key) }));
     const opsSections = OPS_SECTION_ORDER.map((sectionKey) => {
@@ -589,7 +654,9 @@
       ${iconMarkup(app)}
       ${pinned ? `<span class="pinmark" title="고정">${PIN_SVG}</span>` : ''}
       ${statusDotMarkup(app)}
-      <span class="txt"><span class="nm">${esc(app.name)}</span><span class="sl">${esc(app.slug)}</span>${
+      <span class="txt"><span class="nm">${esc(app.name)}</span><span class="sl">${esc(app.slug)}${
+        app.pending ? '<em class="pend" title="정본에 커밋됨 · 배포 대기">· 반영 중</em>' : ''
+      }</span>${
         app.unregistered
           ? '<span class="flag">미등록</span>'
           : `<span class="tg">${esc(app.tag || '—')}</span>`
@@ -688,7 +755,8 @@
 
   function renderColophon() {
     const frontCount = model.frontSections.reduce((sum, entry) => sum + entry.apps.length, 0);
-    dom.colophon.innerHTML = `<span><b>${frontCount}개 앱</b> · catalog v${esc(catalog.version)} · ${esc(catalog.updatedAt)}</span><span><a href="https://jacehub.pages.dev" rel="noopener">jacehub.pages.dev</a> · F01 크림 페이퍼</span>`;
+    const pendingNote = pendingCount() > 0 ? ` · <span class="pend">반영 대기 ${pendingCount()}</span>` : '';
+    dom.colophon.innerHTML = `<span><b>${frontCount}개 앱</b> · catalog v${esc(catalog.version)} · ${esc(catalog.updatedAt)}${pendingNote}</span><span><a href="https://jacehub.pages.dev" rel="noopener">jacehub.pages.dev</a> · F01 크림 페이퍼</span>`;
     dom.dlVer.textContent = String(catalog.version ?? '—');
     dom.dlDate.textContent = String(catalog.updatedAt ?? '—');
   }
@@ -883,6 +951,8 @@
     dom.shPin.setAttribute('aria-pressed', String(pinned));
     dom.shPinLabel.textContent = pinned ? '고정 해제' : '고정';
 
+    fillSectionControl(app);
+
     const prev = index > 0 ? list[index - 1] : null;
     const next = index >= 0 ? list[index + 1] || null : null;
     [[dom.shPrev, prev], [dom.tPrev, prev], [dom.shNext, next], [dom.tNext, next]].forEach(([button, target]) => {
@@ -934,6 +1004,74 @@
     const pinned = toggleFavorite(currentApp.slug);
     render();
     showToast(pinned ? `${currentApp.name} — 고정 행에 올렸어요 📌` : `${currentApp.name} — 고정 해제`, 'success');
+  }
+
+  // ── 섹션 이동 (시트 → /api/catalog → catalog.json 정본 커밋) ──
+  function sectionLabel(key) {
+    const sec = key === 'internal' ? INTERNAL_SECTION : catalog?.sections.find((section) => section.key === key);
+    return sec ? `${sec.emoji} ${sec.label}`.trim() : String(key || '');
+  }
+
+  function canEditCatalog() {
+    return Boolean(getConfig().ghToken);
+  }
+
+  function fillSectionControl(app) {
+    const editable = Boolean(app.catalog);
+    dom.shSecmove.hidden = !editable;
+    if (!editable) return;
+    dom.shSection.innerHTML = catalog.sections.map((sec) => `<option value="${esc(sec.key)}"${sec.key === app.section ? ' selected' : ''}>${esc(sec.emoji)} ${esc(sec.label)}${sec.front ? '' : ' · 정문 제외'}</option>`).join('');
+    dom.shSection.value = app.section;
+    dom.shSection.disabled = moveInFlight || !canEditCatalog();
+    const stateText = moveInFlight ? '커밋 중…' : (app.pending ? '반영 중 · 배포되면 정본' : '');
+    dom.shSectionState.textContent = stateText;
+    dom.shSectionState.classList.toggle('is-on', Boolean(stateText));
+    if (!canEditCatalog()) {
+      dom.shSectionHint.innerHTML = 'GitHub 토큰(Contents 쓰기)을 넣으면 여기서 정본을 고칠 수 있어요 — <button type="button" class="lnk" id="sh-section-settings">설정 열기</button>';
+    } else if (app.pending) {
+      dom.shSectionHint.innerHTML = `정본엔 <b>${esc(sectionLabel(app.section))}</b>로 커밋됨 — 배포(1~2분) 뒤 모든 기기에 반영돼요`;
+    } else {
+      dom.shSectionHint.textContent = '바꾸면 catalog.json 정본에 바로 커밋돼요 (GitHub → 자동 배포)';
+    }
+  }
+
+  async function handleSectionChange() {
+    const app = currentApp;
+    if (!app?.catalog || moveInFlight) return;
+    const to = dom.shSection.value;
+    const from = app.section;
+    if (!to || to === from) return;
+    if (!canEditCatalog()) {
+      dom.shSection.value = from;
+      showToast('GitHub 토큰을 넣으면 카탈로그 정본을 고칠 수 있어요.', 'info');
+      openSettings();
+      return;
+    }
+
+    moveInFlight = true;
+    fillSectionControl(app);
+    try {
+      const response = await fetch('/api/catalog', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-GH-Token': getConfig().ghToken },
+        body: JSON.stringify({ slug: app.slug, section: to }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data?.errors?.[0]?.message || `HTTP ${response.status}`);
+      }
+      // changed=false(정본은 이미 그 섹션)여도 이 기기의 카탈로그는 옛것이니 낙관 반영은 똑같이 해 둔다.
+      pendingMoves[app.slug] = { section: to, at: Date.now(), sha: data.commit?.sha || '' };
+      savePendingMoves();
+      moveInFlight = false;
+      render();
+      showToast(`${app.name} → ${sectionLabel(to)} · 정본에 커밋했어요. 배포되면 모든 기기에 보여요 (1~2분)`, 'success');
+    } catch (error) {
+      moveInFlight = false;
+      dom.shSection.value = from;
+      if (currentApp?.key === app.key) fillSectionControl(currentApp);
+      showToast(`섹션 이동 실패 — ${error.message || error}`, 'error');
+    }
   }
 
   // ── 설정 모달 ──
@@ -1184,6 +1322,7 @@
         throw new Error('sections[] / apps[] 없음');
       }
       catalog = data;
+      reconcilePendingMoves();
       if (favoriteSlugs.size === 0) favoriteSlugs = new Set(DEFAULT_PINNED);
       render();
       return true;
@@ -1262,7 +1401,8 @@
       sheetOpener = null;
     });
     dom.sheet.addEventListener('keydown', (event) => {
-      if (event.target instanceof HTMLInputElement) return;
+      // 셀렉트 위에선 ←/→가 옵션 이동이어야 한다 — 시트 PREV/NEXT로 가로채지 않는다
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
       if (event.key === 'ArrowLeft') { event.preventDefault(); stepSheet(-1); }
       if (event.key === 'ArrowRight') { event.preventDefault(); stepSheet(1); }
     });
@@ -1273,6 +1413,10 @@
     dom.tNext.addEventListener('click', () => stepSheet(1));
     dom.shCopy.addEventListener('click', handleSheetCopy);
     dom.shPin.addEventListener('click', handleSheetPin);
+    dom.shSection.addEventListener('change', handleSectionChange);
+    dom.shSectionHint.addEventListener('click', (event) => {
+      if (event.target.closest('#sh-section-settings')) openSettings();
+    });
     dom.spread.addEventListener('touchstart', (event) => {
       touchStartX = event.touches[0].clientX;
       touchStartY = event.touches[0].clientY;
@@ -1312,6 +1456,7 @@
     document.documentElement.classList.add('js');
     LEGACY_STORAGE_KEYS.forEach(storageRemove);
     favoriteSlugs = loadFavorites();
+    pendingMoves = loadPendingMoves();
     bindEvents();
     updateOpsSwitch();
 
@@ -1324,7 +1469,12 @@
     window.__setOps = (on) => setOps(on);
     window.__openSheet = (key) => openSheet(key, null);
     window.__openSettings = openSettings;
-    window.__jacehub = { get model() { return model; }, get catalog() { return catalog; }, get live() { return liveProjects; } };
+    window.__jacehub = {
+      get model() { return model; },
+      get catalog() { return catalog; },
+      get live() { return liveProjects; },
+      get pending() { return pendingMoves; },
+    };
     window.__READY = true;
   }
 

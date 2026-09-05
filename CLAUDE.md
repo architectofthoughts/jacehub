@@ -10,13 +10,13 @@
 
 - **정문** (토큰 없이 동작): `catalog.json`을 fetch → `sections[].front === true` 순서로 섹션 5개(게임 / 생활·생산성 / 도구·작업장 / 기록·아카이브 / 후추네). 타일 = `icons/apps/<slug>.svg` + 한글 `name`(세리프) + `slug`(모노) + `tag`.
 - **고정 행**: localStorage `jacehub_favorites`(slug 배열). 비어 있으면 기본 `jacemaster · weneedstress · jacepages · jacefiles`. 볼트 연결 시 `favorites` 필드로 동기.
-- **디테일 시트** (`<dialog id="sheet">`, 데스크톱 센터 스프레드 / ≤640px 바텀시트): `shots/<slug>.jpg`(없으면 "스크린샷 없음" 플레이스홀더) · 배포 정보 · 열기 ↗ · 주소 복사 · 📌 고정 토글 · PREV/NEXT(←/→, 스와이프) · ESC/배경 클릭 닫힘 → 타일로 포커스 복귀.
+- **디테일 시트** (`<dialog id="sheet">`, 데스크톱 센터 스프레드 / ≤640px 바텀시트): `shots/<slug>.jpg`(없으면 "스크린샷 없음" 플레이스홀더) · 배포 정보 · 열기 ↗ · 주소 복사 · 📌 고정 토글 · **섹션 셀렉트**(카탈로그 앱만. GitHub 토큰 있을 때 활성 — 바꾸면 `/api/catalog`로 정본 커밋, 아래 "섹션 이동") · PREV/NEXT(←/→, 스와이프 — 셀렉트 위에선 가로채지 않음) · ESC/배경 클릭 닫힘 → 타일로 포커스 복귀.
 - **관제 레이어** (`body.ops`): 헤더 `관제` 스위치. 토큰 없으면 클릭 시 설정 모달. 토큰 있으면 기본 ON, `jacehub_ops_enabled='0'`으로 잠시 끌 수 있음.
   - `/api/projects` 라이브 목록을 카탈로그와 **이름으로 매칭**: `cfName` → `slug` → URL 호스트 순.
   - 타일 상태점: 초록(success) / 빨강(failure) / 황토(진행) / 회색(정체 ≥ `STALE_PROJECT_DAYS`=30일). 시트엔 `{타입} · {N일 전 배포} · {상태}` + 배지.
   - 접힌 섹션 4개(기본 접힘): 🔍 미검수 · 🪦 퇴역 후보 · 🗄 격납고 · 🔒 내부. 격납고 = 카탈로그 `hangar` ∪ **API에 있는데 카탈로그에 없는 프로젝트**("미등록" 배지). 내부 = API `_type === 'service'`(`SELF_HOSTED_SERVICES`).
   - API 실패 → 토스트 + 카탈로그만 렌더. 정문은 절대 깨지지 않는다.
-- **⚙ 설정 모달** (`<dialog id="settings">`): Account ID · API Token · GH Token · Vercel Token + 클라우드 보관소(PIN 불러오기/저장/덮어쓰기/삭제) + "이 기기에서 지우기".
+- **⚙ 설정 모달** (`<dialog id="settings">`): Account ID · API Token · GH Token(레포 설명 조회 + **섹션 이동 커밋** — Contents 쓰기 권한 필요) · Vercel Token + 클라우드 보관소(PIN 불러오기/저장/덮어쓰기/삭제) + "이 기기에서 지우기".
 
 ## catalog.json 규약 (정본 — git)
 
@@ -29,6 +29,19 @@
 - **앱 추가 = ① apps[]에 한 줄 + ② `icons/apps/<slug>.svg`(F01 스탬프 결, `icons/apps/README.md`) + ③ `node scripts/shots.mjs --only <slug>`로 `shots/<slug>.jpg` 재캡처.** 아이콘/스크린샷이 없어도 이니셜 타일·플레이스홀더로 폴백되니 정문은 뜬다.
 - 내부 서비스(CF Access 뒤)는 여기 넣지 않는다 — `functions/api/projects.js`의 `SELF_HOSTED_SERVICES`로만 합류.
 - `npm run build`가 JSON 유효성·slug 중복·section 키를 검사한다.
+- **섹션 이동은 앱 안에서도 된다** (2026-09-05): 디테일 시트의 섹션 셀렉트 → `/api/catalog`가 이 파일을 GitHub에 커밋한다. 손으로 고치는 것과 충돌하지 않는다(파일 sha 기준, 충돌 시 1회 재시도). 관행 "앱 1개 = 1줄, 섹션별 그룹, 그룹 사이 빈 줄"을 지켜야 diff가 한 줄로 남는다 — 관행이 깨지면 API가 정규 포맷으로 전체를 다시 쓴다.
+
+## 섹션 이동 — `functions/api/catalog.js` (정본 커밋)
+
+카테고리 변경의 진실은 **여전히 git의 catalog.json 하나**. 앱은 그 파일을 GitHub Contents API로 고치는 손일 뿐이다 (기기 오버라이드·볼트 동기 없음 — 2026-09-05 clearfy 결정, `docs/section-move-20260905.md`).
+
+- **요청**: `PATCH /api/catalog` · 헤더 `X-GH-Token`(설정 모달의 GitHub 토큰) · 본문 `{ "slug": "youtubewc", "section": "life" }`.
+- **서버**: 레포 `catalog.json`(main) 읽기 → 해당 앱 줄만 떼어 목적지 섹션 그룹 **끝**으로 이동 + `"section"` 값 교체 + `updatedAt`=KST 오늘 → 파싱·불변 항목 대조로 자가 검증 → 같은 sha로 PUT. 커밋 메시지 `catalog: <slug> <from> → <to> (jacehub 시트에서 이동)`. 서버 시크릿 없음 — 호출자 토큰으로만 동작.
+- **토큰 권한**: Fine-grained는 jacehub 레포 **Contents: Read and write**, Classic은 `repo`. 읽기 전용 토큰이면 403 `github-forbidden`(안내 문구 포함).
+- **응답**: `{ success, changed, slug, from, to, updatedAt, method: "line"|"rewrite", retried, commit: { sha, url } }`. 같은 섹션이면 `changed: false`(PUT 안 함). 에러는 `{ success: false, code, errors: [{ message }] }` — `no-token` 401 · `unknown-slug` 404(미등록 앱은 못 옮김) · `unknown-section` 400 · `github-conflict` 409 · `verify-failed` 500.
+- **push = 배포**이므로 커밋 성공이 곧 화면 반영은 아니다. 클라이언트는 localStorage `jacehub_pending_moves`(`{slug: {section, at, sha}}`)로 **낙관 반영**하고(타일 슬러그 꼬리 "· 반영 중", 시트 상태, 콜로폰 "반영 대기 N"), 다음 로드에서 배포된 catalog.json이 같은 섹션을 말하면 지운다. 24h 지나도 안 오면 버린다(배포 실패·수동 되돌림). 볼트에는 싣지 않는다.
+- 다른 레포/브랜치로 돌리려면 Pages 환경변수 `CATALOG_REPO`(`owner/repo`) · `CATALOG_BRANCH`.
+- 테스트 `test/catalog.test.js`: 줄 이동·쉼표 보정·빈 그룹·압축 JSON 폴백 + GitHub 가짜 fetch로 핸들러 왕복(401/403/404/409 재시도).
 
 ## Self-hosted 서비스
 
@@ -58,7 +71,7 @@ CF/Vercel API에 안 잡히는 셀프호스트(warren·ccwatch, bani WSL + CF Tu
 ## Local Dev / Test
 
 ```bash
-npm test                  # vault.js 단위 테스트 (node --test)
+npm test                  # vault.js + catalog.js 단위 테스트 (node --test)
 npm run build             # dist 생성 (+ catalog.json 검증, node --check)
 npx wrangler pages dev dist   # 로컬 미리보기 (toml 바인딩 자동 인식)
 node scripts/shots.mjs [--only <slug>]   # 디테일 시트 스크린샷 재캡처 (shots/manual.json 제외 목록)

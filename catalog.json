@@ -18,7 +18,6 @@
     { "slug": "lumi-nightfall",   "name": "나이트폴",           "tag": "루미 턴제 SRPG 웹 이식판",  "section": "game",    "url": "https://lumi-nightfall.pages.dev" },
 
     { "slug": "jacemaster",       "name": "제이스마스터",       "tag": "14앱 통합 생활 PWA",        "section": "life",    "url": "https://jacemaster.pages.dev" },
-    { "slug": "weneedstress",     "name": "위니드스트레스",     "tag": "운동·식단 통합 관리",       "section": "life",    "url": "https://weneedstress.pages.dev" },
     { "slug": "roommanager",      "name": "방 매니저",          "tag": "캔버스 방·물품 인벤토리",    "section": "life",    "url": "https://roommanager.pages.dev" },
     { "slug": "learneverything",  "name": "런에브리씽",         "tag": "키워드·문장 학습",          "section": "life",    "url": "https://learneverything.pages.dev" },
     { "slug": "youtubewc",        "name": "유튜브뮤직 월드컵",   "tag": "음악 이상형 월드컵",        "section": "life",    "url": "https://youtubemusicwc.jaceyoung0705.workers.dev", "type": "worker", "cfName": "youtubemusicwc" },

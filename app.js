@@ -18,7 +18,7 @@
   const PENDING_MOVE_TTL_MS = DAY_MS;
   // 정체 판정 — 리디자인에서 30일로 조정 (구 대시보드 21일). 시트 배지 라벨과 동일 값.
   const STALE_PROJECT_DAYS = 30;
-  const DEFAULT_PINNED = ['jacemaster', 'weneedstress', 'jacepages', 'jacefiles'];
+  const DEFAULT_PINNED = ['jacemaster', 'jacepages', 'jacefiles']; // weneedstress는 2026-09-07 아카이브 — jacemaster 운동·식단 탭이 정본
   const OPS_SECTION_ORDER = ['unreviewed', 'retire', 'hangar', 'internal'];
   const INTERNAL_SECTION = { key: 'internal', emoji: '🔒', label: '내부', blurb: 'CF Access 뒤 — 정문 제외', front: false };
 

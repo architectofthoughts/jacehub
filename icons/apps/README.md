@@ -35,6 +35,8 @@
 | weneedstress.svg | life | 위니드스트레스 | 덤벨 | 테라코타 |
 | roommanager.svg | life | 방 매니저 | 침대(베개·이불) | 틸 |
 | learneverything.svg | life | 런에브리씽 | 학사모 + 술 | 올리브 |
+| jacetunes.svg | life | 제이스튠즈 | 연결된 음표 | 플럼 |
+| warren.svg | tool | 워런 | 터미널 창과 프롬프트 | 틸 |
 | jacepages.svg | tool | 제이스 페이지 | 겹친 문서 두 장 | 웜그레이 |
 | jacewiki.svg | tool | 제이스 위키 | 펼친 책 | 슬레이트블루 |
 | jacefiles.svg | tool | 주머니 | 끈 묶은 주머니 | 머스터드 |

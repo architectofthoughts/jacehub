@@ -13,7 +13,8 @@ import {
 } from '../functions/api/catalog.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const REAL = await readFile(path.join(ROOT, 'catalog.json'), 'utf8');
+// 고정된 카탈로그로 이동 규칙을 검증한다. 운영 앱 배치 변경과 독립적이다.
+const REAL = await readFile(path.join(ROOT, 'test/fixtures/catalog.json'), 'utf8');
 const TODAY = '2026-09-05';
 
 const appLinesOf = (text) => text.split('\n').filter((line) => /"slug"\s*:/.test(line));

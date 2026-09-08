@@ -27,7 +27,7 @@
 - `slug` 유일 · `name` 한글 표시명 · `tag` 한 줄 역할 · `section` = sections[].key · `url` 없으면 열기 비활성.
 - 선택: `type: "worker"`(배포 타입 라벨), `cfName`(CF 프로젝트명이 slug와 다를 때 — 예: youtubewc → youtubemusicwc).
 - **앱 추가 = ① apps[]에 한 줄 + ② `icons/apps/<slug>.svg`(F01 스탬프 결, `icons/apps/README.md`) + ③ `node scripts/shots.mjs --only <slug>`로 `shots/<slug>.jpg` 재캡처.** 아이콘/스크린샷이 없어도 이니셜 타일·플레이스홀더로 폴백되니 정문은 뜬다.
-- 내부 서비스(CF Access 뒤)는 여기 넣지 않는다 — `functions/api/projects.js`의 `SELF_HOSTED_SERVICES`로만 합류.
+- 내부 서비스도 사용자가 요청한 바로가기는 카탈로그에 등록한다(warren → tool). 접속 인증은 대상 앱에서 처리하며, 관제 상태는 `SELF_HOSTED_SERVICES`로 합류한다. 카탈로그에 매칭된 서비스는 내부 섹션에 중복 표시하지 않는다.
 - `npm run build`가 JSON 유효성·slug 중복·section 키를 검사한다.
 - **섹션 이동은 앱 안에서도 된다** (2026-09-05): 디테일 시트의 섹션 셀렉트 → `/api/catalog`가 이 파일을 GitHub에 커밋한다. 손으로 고치는 것과 충돌하지 않는다(파일 sha 기준, 충돌 시 1회 재시도). 관행 "앱 1개 = 1줄, 섹션별 그룹, 그룹 사이 빈 줄"을 지켜야 diff가 한 줄로 남는다 — 관행이 깨지면 API가 정규 포맷으로 전체를 다시 쓴다.
 
@@ -45,7 +45,7 @@
 
 ## Self-hosted 서비스
 
-CF/Vercel API에 안 잡히는 셀프호스트(warren·ccwatch, bani WSL + CF Tunnel/Access)는 `functions/api/projects.js`의 `SELF_HOSTED_SERVICES` 상수로 합류. 헬스는 CF Tunnel API(`cfd_tunnel`) — 토큰에 **Account > Cloudflare Tunnel:Read**가 있어야 라이브, 없으면 "상태 미확인". 클라이언트는 `_type: 'service'` → 관제 레이어 "내부" 섹션.
+CF/Vercel API에 안 잡히는 셀프호스트(warren·ccwatch, bani WSL + CF Tunnel/Access)는 `functions/api/projects.js`의 `SELF_HOSTED_SERVICES` 상수로 합류. 헬스는 CF Tunnel API(`cfd_tunnel`) — 토큰에 **Account > Cloudflare Tunnel:Read**가 있어야 라이브, 없으면 "상태 미확인". 클라이언트는 카탈로그에 등록된 서비스는 해당 섹션에 유지하고, 나머지 `_type: 'service'`만 관제 레이어 "내부" 섹션에 표시한다.
 
 ## 볼트 (`functions/api/vault.js`)
 

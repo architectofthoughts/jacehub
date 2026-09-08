@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-08",
-  "note": "jacehub 정문 카탈로그 — git이 정본. 여기 없는 프로젝트는 관제 레이어 격납고에 '미등록'으로 접힘. 정문에 등록한 내부 서비스는 바로가기를 제공하고, 관제 상태는 functions/api/projects.js SELF_HOSTED_SERVICES에서 합류.",
+  "updatedAt": "2026-08-31",
+  "note": "jacehub 정문 카탈로그 — git이 정본. 여기 없는 프로젝트는 관제 레이어 격납고에 '미등록'으로 접힘. 내부 서비스(CF Access 뒤)는 이 파일에 넣지 않는다 — functions/api/projects.js SELF_HOSTED_SERVICES로만 합류.",
   "sections": [
     { "key": "game",       "emoji": "🎮", "label": "게임",          "blurb": "플레이하러 들어가는 것들",          "front": true },
     { "key": "life",       "emoji": "🏠", "label": "생활·생산성",   "blurb": "매일 쓰는 생활 앱",                 "front": true },
@@ -16,17 +16,16 @@
     { "slug": "crazy-dice",       "name": "CRAZY SLOT",        "tag": "플레이어블 슬롯 목업",      "section": "game",    "url": "https://crazy-dice.pages.dev" },
     { "slug": "yggdrasil-demo",   "name": "이그드라실",         "tag": "그래픽 데모",               "section": "game",    "url": "https://yggdrasil-demo-4hm.pages.dev" },
     { "slug": "lumi-nightfall",   "name": "나이트폴",           "tag": "루미 턴제 SRPG 웹 이식판",  "section": "game",    "url": "https://lumi-nightfall.pages.dev" },
+    { "slug": "youtubewc",        "name": "유튜브뮤직 월드컵",   "tag": "음악 이상형 월드컵",        "section": "game",    "url": "https://youtubemusicwc.jaceyoung0705.workers.dev", "type": "worker", "cfName": "youtubemusicwc" },
 
     { "slug": "jacemaster",       "name": "제이스마스터",       "tag": "14앱 통합 생활 PWA",        "section": "life",    "url": "https://jacemaster.pages.dev" },
+    { "slug": "weneedstress",     "name": "위니드스트레스",     "tag": "운동·식단 통합 관리",       "section": "life",    "url": "https://weneedstress.pages.dev" },
     { "slug": "roommanager",      "name": "방 매니저",          "tag": "캔버스 방·물품 인벤토리",    "section": "life",    "url": "https://roommanager.pages.dev" },
     { "slug": "learneverything",  "name": "런에브리씽",         "tag": "키워드·문장 학습",          "section": "life",    "url": "https://learneverything.pages.dev" },
-    { "slug": "youtubewc",        "name": "유튜브뮤직 월드컵",   "tag": "음악 이상형 월드컵",        "section": "life",    "url": "https://youtubemusicwc.jaceyoung0705.workers.dev", "type": "worker", "cfName": "youtubemusicwc" },
-    { "slug": "jacetunes",        "name": "제이스튠즈",          "tag": "개인 음악 순위·곡 라이브러리", "section": "life",    "url": "https://jacetunes.jaceyoung0705.workers.dev", "type": "worker" },
 
     { "slug": "jacepages",        "name": "제이스 페이지",      "tag": "HTML 가이드·리포트 허브",   "section": "tool",    "url": "https://jacepages.pages.dev" },
     { "slug": "jacewiki",         "name": "제이스 위키",        "tag": "앱·게임 문서 위키",         "section": "tool",    "url": "https://jacewiki.pages.dev" },
     { "slug": "jacefiles",        "name": "주머니",             "tag": "기기 간 파일함",            "section": "tool",    "url": "https://jacefiles.pages.dev" },
-    { "slug": "warren",           "name": "워런",               "tag": "3머신 에이전트 세션 관제",  "section": "tool",    "url": "https://warren.lumilaboratory.cc", "type": "service" },
 
     { "slug": "kyou",             "name": "響 쿄우",            "tag": "수묵 검객 액션 데모",       "section": "archive", "url": "https://kyou-er1.pages.dev" },
     { "slug": "fateweaver",       "name": "페이트위버",         "tag": "AI GM 텍스트 RPG",          "section": "archive", "url": "https://fateweaver.pages.dev" },

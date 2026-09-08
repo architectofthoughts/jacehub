@@ -510,6 +510,7 @@
     if (app.internal) return 'INTERNAL';
     if (app.unregistered) return '미등록';
     const type = project?._type || app.type || 'pages';
+    if (type === 'service') return 'SELF-HOSTED';
     return type === 'worker' ? 'WORKER' : type === 'vercel' ? 'VERCEL' : 'PAGES';
   }
 
@@ -557,6 +558,7 @@
     if (isLiveActive()) {
       liveProjects.forEach((project) => {
         if (!project?.name) return;
+        if (matchedNames.has(project.name)) return;
         if (project._type === 'service') {
           internal.push({
             key: `svc:${project.name}`,
@@ -571,7 +573,6 @@
           });
           return;
         }
-        if (matchedNames.has(project.name)) return;
         unregistered.push({
           key: `unreg:${project.name}`,
           slug: project.name,
